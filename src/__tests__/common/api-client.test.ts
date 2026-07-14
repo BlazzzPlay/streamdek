@@ -31,10 +31,10 @@ describe('ApiClient', () => {
     fetchMock = mockFetch(200);
     client = new ApiClient(fetchMock as unknown as typeof fetch);
     client.setBaseUrl('localhost', 26538);
-    client.setJwt('test-token-123');
+    client.setToken('test-token-123');
   });
 
-  describe('JWT Bearer authentication', () => {
+  describe('Bearer token authentication', () => {
     it('should include Authorization header with Bearer token', async () => {
       await client.get('/test');
 
@@ -48,12 +48,58 @@ describe('ApiClient', () => {
     });
   });
 
-  describe('base URL construction', () => {
-    it('should construct full URL from host and port', async () => {
-      await client.get('/api/v1/status');
+  describe('authenticate (auth flow)', () => {
+    it('should POST to /auth/{clientId} and return accessToken', async () => {
+      fetchMock = mockFetch(200, { accessToken: 'new-jwt-token' });
+      client = new ApiClient(fetchMock as unknown as typeof fetch);
+      client.setBaseUrl('localhost', 26538);
+
+      const token = await client.authenticate('streamdek-abc123');
 
       const url = fetchMock.mock.calls[0]?.[0] as string;
-      expect(url).toBe('http://localhost:26538/api/v1/status');
+      expect(url).toBe('http://localhost:26538/auth/streamdek-abc123');
+      const init = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+      expect(init?.method).toBe('POST');
+
+      // authenticate() does NOT send the access token (no auth needed on /auth endpoint)
+      const authHeader = getAuthHeader(fetchMock);
+      expect(authHeader).toBeNull();
+
+      expect(token).toBe('new-jwt-token');
+    });
+
+    it('should throw on non-200 auth response', async () => {
+      fetchMock = mockFetch(403, { error: 'Denied' });
+      client = new ApiClient(fetchMock as unknown as typeof fetch);
+      client.setBaseUrl('localhost', 26538);
+
+      await expect(client.authenticate('streamdek-abc123')).rejects.toThrow();
+    });
+
+    it('should handle auth with different client IDs', async () => {
+      fetchMock = mockFetch(200, { accessToken: 'token-for-custom' });
+      client = new ApiClient(fetchMock as unknown as typeof fetch);
+      client.setBaseUrl('localhost', 26538);
+
+      const token = await client.authenticate('custom-client-xyz');
+      expect(token).toBe('token-for-custom');
+    });
+  });
+
+  describe('setToken', () => {
+    it('should use the token for subsequent requests', async () => {
+      client.setToken('updated-token');
+      await client.get('/test');
+      expect(getAuthHeader(fetchMock)).toBe('Bearer updated-token');
+    });
+  });
+
+  describe('base URL construction', () => {
+    it('should construct full URL from host and port', async () => {
+      await client.get('/api/v1/song');
+
+      const url = fetchMock.mock.calls[0]?.[0] as string;
+      expect(url).toBe('http://localhost:26538/api/v1/song');
     });
 
     it('should update base URL when settings change', async () => {
@@ -81,7 +127,7 @@ describe('ApiClient', () => {
 
       const timeoutClient = new ApiClient(trackedFetch as unknown as typeof fetch);
       timeoutClient.setBaseUrl('localhost', 26538);
-      timeoutClient.setJwt('token');
+      timeoutClient.setToken('token');
 
       await timeoutClient.get('/test');
 
@@ -97,10 +143,10 @@ describe('ApiClient', () => {
       fetchMock = mockFetch(401, { error: 'Invalid token' });
       client = new ApiClient(fetchMock as unknown as typeof fetch);
       client.setBaseUrl('localhost', 26538);
-      client.setJwt('bad-token');
+      client.setToken('bad-token');
 
       await expect(client.get('/test')).rejects.toThrow(
-        'Unauthorized: check your JWT token',
+        'Unauthorized: check your access token',
       );
     });
 
@@ -108,7 +154,7 @@ describe('ApiClient', () => {
       fetchMock = mockFetch(404, { error: 'Not found' });
       client = new ApiClient(fetchMock as unknown as typeof fetch);
       client.setBaseUrl('localhost', 26538);
-      client.setJwt('token');
+      client.setToken('token');
 
       await expect(client.get('/test')).rejects.toThrow();
     });
@@ -119,7 +165,7 @@ describe('ApiClient', () => {
       );
       client = new ApiClient(errorFetch as unknown as typeof fetch);
       client.setBaseUrl('localhost', 26538);
-      client.setJwt('token');
+      client.setToken('token');
 
       await expect(client.get('/test')).rejects.toThrow('Network error');
     });
@@ -143,7 +189,7 @@ describe('ApiClient', () => {
 
       client = new ApiClient(failThenSucceed as unknown as typeof fetch);
       client.setBaseUrl('localhost', 26538);
-      client.setJwt('token');
+      client.setToken('token');
 
       await client.get('/test');
       expect(failThenSucceed).toHaveBeenCalledTimes(2);
@@ -163,7 +209,7 @@ describe('ApiClient', () => {
 
       client = new ApiClient(always401 as unknown as typeof fetch);
       client.setBaseUrl('localhost', 26538);
-      client.setJwt('token');
+      client.setToken('token');
 
       await expect(client.get('/test')).rejects.toThrow();
       expect(always401).toHaveBeenCalledTimes(1); // no retry on 401
@@ -176,7 +222,7 @@ describe('ApiClient', () => {
 
       client = new ApiClient(alwaysFail as unknown as typeof fetch);
       client.setBaseUrl('localhost', 26538);
-      client.setJwt('token');
+      client.setToken('token');
 
       await expect(client.get('/test')).rejects.toThrow();
       expect(alwaysFail).toHaveBeenCalledTimes(2);
@@ -184,11 +230,11 @@ describe('ApiClient', () => {
   });
 
   describe('convenience methods', () => {
-    it('playPause should POST to /api/v1/play-pause', async () => {
-      await client.playPause();
+    it('togglePlay should POST to /api/v1/toggle-play', async () => {
+      await client.togglePlay();
 
       const url = fetchMock.mock.calls[0]?.[0] as string;
-      expect(url).toContain(ENDPOINTS.PLAY_PAUSE);
+      expect(url).toContain(ENDPOINTS.TOGGLE_PLAY);
       const init = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
       expect(init?.method).toBe('POST');
     });
@@ -223,29 +269,50 @@ describe('ApiClient', () => {
       expect(url).toContain(ENDPOINTS.SHUFFLE);
     });
 
-    it('repeat should POST to /api/v1/repeat', async () => {
-      await client.repeat();
+    it('switchRepeat should POST to /api/v1/switch-repeat with iteration body', async () => {
+      await client.switchRepeat(2);
+
       const url = fetchMock.mock.calls[0]?.[0] as string;
-      expect(url).toContain(ENDPOINTS.REPEAT);
+      expect(url).toContain(ENDPOINTS.SWITCH_REPEAT);
+      const init = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+      expect(init?.body).toBe(JSON.stringify({ iteration: 2 }));
     });
 
-    it('setVolume should PUT with absolute value (bug #4458)', async () => {
+    it('setVolume should POST with absolute value (bug #4458)', async () => {
       await client.setVolume(75);
 
       const url = fetchMock.mock.calls[0]?.[0] as string;
       expect(url).toContain(ENDPOINTS.VOLUME);
       const init = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
-      expect(init?.method).toBe('PUT');
+      expect(init?.method).toBe('POST');
       expect(init?.body).toBe(JSON.stringify({ volume: 75 }));
     });
 
-    it('seek should POST with position in seconds', async () => {
-      await client.seek(30);
+    it('toggleMute should POST to /api/v1/toggle-mute', async () => {
+      await client.toggleMute();
 
       const url = fetchMock.mock.calls[0]?.[0] as string;
-      expect(url).toContain(ENDPOINTS.SEEK);
+      expect(url).toContain(ENDPOINTS.TOGGLE_MUTE);
       const init = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
-      expect(init?.body).toBe(JSON.stringify({ position: 30 }));
+      expect(init?.method).toBe('POST');
+    });
+
+    it('seekTo should POST with seconds in body', async () => {
+      await client.seekTo(30);
+
+      const url = fetchMock.mock.calls[0]?.[0] as string;
+      expect(url).toContain(ENDPOINTS.SEEK_TO);
+      const init = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+      expect(init?.body).toBe(JSON.stringify({ seconds: 30 }));
+    });
+
+    it('getSong should GET /api/v1/song', async () => {
+      await client.getSong();
+
+      const url = fetchMock.mock.calls[0]?.[0] as string;
+      expect(url).toContain(ENDPOINTS.SONG);
+      const init = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+      expect(init?.method).toBe('GET');
     });
   });
 });

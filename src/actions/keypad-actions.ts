@@ -36,7 +36,7 @@ abstract class BaseKeypadAction extends SingletonAction<PluginSettings> {
 export class PlayPauseAction extends BaseKeypadAction {
   async onKeyDown(ev: KeyDownEvent<PluginSettings>): Promise<void> {
     await this.executeIfReady(ev, async () => {
-      await apiClient.playPause();
+      await apiClient.togglePlay();
       const isPlaying = stateStore.get('isPlaying');
       await ev.action.setState(isPlaying ? 1 : 0);
     });
@@ -88,8 +88,8 @@ export class ShuffleAction extends BaseKeypadAction {
   async onKeyDown(ev: KeyDownEvent<PluginSettings>): Promise<void> {
     await this.executeIfReady(ev, async () => {
       await apiClient.shuffle();
-      const isShuffled = stateStore.get('isShuffled');
-      await ev.action.setState(isShuffled ? 1 : 0);
+      const shuffle = stateStore.get('shuffle');
+      await ev.action.setState(shuffle ? 1 : 0);
     });
   }
 }
@@ -98,10 +98,12 @@ export class ShuffleAction extends BaseKeypadAction {
 export class RepeatAction extends BaseKeypadAction {
   async onKeyDown(ev: KeyDownEvent<PluginSettings>): Promise<void> {
     await this.executeIfReady(ev, async () => {
-      await apiClient.repeat();
-      const mode = stateStore.get('repeatMode');
-      const stateMap: Record<string, number> = { off: 0, one: 1, all: 2 };
-      await ev.action.setState(stateMap[mode] ?? 0);
+      const mode = stateStore.get('repeat');
+      const modeMap: Record<string, number> = { off: 0, one: 1, all: 2 };
+      const nextIteration = ((modeMap[mode] ?? 0) + 1) % 3;
+      await apiClient.switchRepeat(nextIteration);
+      const stateMap: Record<number, number> = { 0: 0, 1: 1, 2: 2 };
+      await ev.action.setState(stateMap[nextIteration]);
     });
   }
 }

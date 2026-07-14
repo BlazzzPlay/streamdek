@@ -1,18 +1,17 @@
 import type { WsEventType, WsEventHandler } from './types.js';
+import { WS_PATH } from './endpoints.js';
 
 /** Backoff sequence for reconnect: 1s → 2s → 4s → 8s → 16s → 32s → 60s cap */
 const BACKOFF_SEQUENCE = [1000, 2000, 4000, 8000, 16000, 32000, 60000];
 
 /**
- * WebSocket client for pear-desktop communication.
- * Sends JWT as first frame after WS open.
+ * WebSocket client for pear-desktop API Server communication.
+ * Token is passed as a query parameter in the WS URL: /api/v1/ws?token=<jwt>
  * Typed event pub/sub for player state events.
  * Exponential backoff reconnect capped at 60s, reset on success.
  */
 export class WsClient {
   private ws: WebSocket | null = null;
-  private url = '';
-  private jwt = '';
   private listeners = new Map<string, Set<WsEventHandler>>();
   private failCount = 0;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -28,13 +27,12 @@ export class WsClient {
 
   /**
    * Connect to the WebSocket server.
-   * JWT is sent as the first frame after the connection opens.
+   * Token is appended as a query parameter: ws://host:port/api/v1/ws?token=<token>
    */
-  connect(url: string, jwt: string): void {
+  connect(baseUrl: string, token: string): void {
     this.disposed = false;
-    this.url = url;
-    this.jwt = jwt;
-    this.createSocket();
+    const wsUrl = `${baseUrl}${WS_PATH}?token=${encodeURIComponent(token)}`;
+    this.createSocket(wsUrl);
   }
 
   /** Close the WebSocket and stop reconnect attempts */
@@ -65,19 +63,18 @@ export class WsClient {
 
   // ─── Private ────────────────────────────────────────────────────────
 
-  private createSocket(): void {
+  private createSocket(wsUrl: string): void {
     if (this.disposed) return;
 
     try {
-      this.ws = new this.wsCtor(this.url);
+      this.ws = new this.wsCtor(wsUrl);
     } catch {
-      this.scheduleReconnect();
+      this.scheduleReconnect(wsUrl);
       return;
     }
 
     this.ws.addEventListener('open', () => {
       this.failCount = 0; // Reset backoff on successful connection
-      this.sendAuth();
     });
 
     this.ws.addEventListener('message', (event: MessageEvent) => {
@@ -86,7 +83,7 @@ export class WsClient {
 
     this.ws.addEventListener('close', (_event: CloseEvent) => {
       if (!this.disposed) {
-        this.scheduleReconnect();
+        this.scheduleReconnect(wsUrl);
       }
     });
 
@@ -95,18 +92,10 @@ export class WsClient {
     });
   }
 
-  private sendAuth(): void {
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify({ type: 'auth', token: this.jwt }));
-    }
-  }
-
   private handleMessage(raw: string): void {
     try {
       const data = JSON.parse(raw) as { type: string };
-      const type = data.type as WsEventType;
-
-      const handlers = this.listeners.get(type);
+      const handlers = this.listeners.get(data.type);
       if (handlers && handlers.size > 0) {
         for (const handler of handlers) {
           handler(data);
@@ -117,7 +106,7 @@ export class WsClient {
     }
   }
 
-  private scheduleReconnect(): void {
+  private scheduleReconnect(wsUrl: string): void {
     if (this.disposed) return;
 
     const delay = BACKOFF_SEQUENCE[Math.min(this.failCount, BACKOFF_SEQUENCE.length - 1)];
@@ -128,7 +117,7 @@ export class WsClient {
     }
 
     this.reconnectTimer = setTimeout(() => {
-      this.createSocket();
+      this.createSocket(wsUrl);
     }, delay);
   }
 

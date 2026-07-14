@@ -1,16 +1,16 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 
 const mockApiClient = {
-  playPause: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+  togglePlay: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
   setVolume: jest.fn<(vol: number) => Promise<void>>().mockResolvedValue(undefined),
-  seek: jest.fn<(pos: number) => Promise<void>>().mockResolvedValue(undefined),
+  seekTo: jest.fn<(pos: number) => Promise<void>>().mockResolvedValue(undefined),
 };
 
 const mockState = {
   volume: 80,
-  isMuted: false,
-  currentPosition: 120,
-  trackDuration: 300,
+  muted: false,
+  position: 120,
+  song: { title: 'Test', artist: 'Artist', album: 'Album', duration: 300, thumbnailUrl: '' },
   isPlaying: true,
 };
 
@@ -59,9 +59,9 @@ describe('Encoder Actions', () => {
     jest.clearAllMocks();
     mockConnected.value = true;
     mockState.volume = 80;
-    mockState.isMuted = false;
-    mockState.currentPosition = 120;
-    mockState.trackDuration = 300;
+    mockState.muted = false;
+    mockState.position = 120;
+    mockState.song = { title: 'Test', artist: 'Artist', album: 'Album', duration: 300, thumbnailUrl: '' };
   });
 
   describe('VolumeAction', () => {
@@ -103,13 +103,13 @@ describe('Encoder Actions', () => {
 
     describe('onDialDown (mute toggle)', () => {
       it('should mute when unmuted', async () => {
-        mockState.isMuted = false;
+        mockState.muted = false;
         await action.onDialDown!(createDialDownEvent());
         expect(mockApiClient.setVolume).toHaveBeenCalledWith(0);
       });
 
       it('should unmute to current volume when muted', async () => {
-        mockState.isMuted = true;
+        mockState.muted = true;
         mockState.volume = 65;
         await action.onDialDown!(createDialDownEvent());
         expect(mockApiClient.setVolume).toHaveBeenCalledWith(65);
@@ -133,43 +133,43 @@ describe('Encoder Actions', () => {
     describe('onDialRotate', () => {
       it('should seek forward by 5 seconds per clockwise tick', async () => {
         await action.onDialRotate!(createDialRotateEvent(1));
-        expect(mockApiClient.seek).toHaveBeenCalledWith(125);
+        expect(mockApiClient.seekTo).toHaveBeenCalledWith(125);
       });
 
       it('should seek backward by 5 seconds per counter-clockwise tick', async () => {
         await action.onDialRotate!(createDialRotateEvent(-1));
-        expect(mockApiClient.seek).toHaveBeenCalledWith(115);
+        expect(mockApiClient.seekTo).toHaveBeenCalledWith(115);
       });
 
       it('should not seek beyond track duration', async () => {
-        mockState.currentPosition = 298;
+        mockState.position = 298;
         await action.onDialRotate!(createDialRotateEvent(1));
-        expect(mockApiClient.seek).toHaveBeenCalledWith(300);
+        expect(mockApiClient.seekTo).toHaveBeenCalledWith(300);
       });
 
       it('should not seek below 0', async () => {
-        mockState.currentPosition = 2;
+        mockState.position = 2;
         await action.onDialRotate!(createDialRotateEvent(-2));
-        expect(mockApiClient.seek).toHaveBeenCalledWith(0);
+        expect(mockApiClient.seekTo).toHaveBeenCalledWith(0);
       });
 
       it('should NOT call API when not authenticated', async () => {
         mockConnected.value = false;
         await action.onDialRotate!(createDialRotateEvent(1));
-        expect(mockApiClient.seek).not.toHaveBeenCalled();
+        expect(mockApiClient.seekTo).not.toHaveBeenCalled();
       });
     });
 
     describe('onDialDown', () => {
       it('should toggle play/pause', async () => {
         await action.onDialDown!(createDialDownEvent());
-        expect(mockApiClient.playPause).toHaveBeenCalled();
+        expect(mockApiClient.togglePlay).toHaveBeenCalled();
       });
 
       it('should NOT call API when not authenticated', async () => {
         mockConnected.value = false;
         await action.onDialDown!(createDialDownEvent());
-        expect(mockApiClient.playPause).not.toHaveBeenCalled();
+        expect(mockApiClient.togglePlay).not.toHaveBeenCalled();
       });
     });
   });

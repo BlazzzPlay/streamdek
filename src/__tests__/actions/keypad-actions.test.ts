@@ -2,19 +2,19 @@ import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 
 // Mock singletons
 const mockMethods = {
-  playPause: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+  togglePlay: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
   next: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
   previous: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
   like: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
   dislike: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
   shuffle: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
-  repeat: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+  switchRepeat: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
 };
 
 const mockState = {
-  isPlaying: true, isMuted: false, isLiked: false, isDisliked: false,
-  isShuffled: false, repeatMode: 'off' as const, volume: 80,
-  currentPosition: 120, trackDuration: 300,
+  isPlaying: true, muted: false, isLiked: false, isDisliked: false,
+  shuffle: false, repeat: 'off' as const, volume: 80,
+  position: 120, song: { title: 'Test', artist: 'Artist', album: 'Album', duration: 300, thumbnailUrl: '' },
 };
 
 const mockConnectionState = { authenticated: true };
@@ -76,13 +76,13 @@ describe('Keypad Actions', () => {
   });
 
   const actionTests = [
-    { name: 'PlayPauseAction', Class: PlayPauseAction, method: 'playPause' },
+    { name: 'PlayPauseAction', Class: PlayPauseAction, method: 'togglePlay' },
     { name: 'NextTrackAction', Class: NextTrackAction, method: 'next' },
     { name: 'PreviousTrackAction', Class: PreviousTrackAction, method: 'previous' },
     { name: 'LikeAction', Class: LikeAction, method: 'like' },
     { name: 'DislikeAction', Class: DislikeAction, method: 'dislike' },
     { name: 'ShuffleAction', Class: ShuffleAction, method: 'shuffle' },
-    { name: 'RepeatAction', Class: RepeatAction, method: 'repeat' },
+    { name: 'RepeatAction', Class: RepeatAction, method: 'switchRepeat' },
   ] as const;
 
   for (const { name, Class, method } of actionTests) {

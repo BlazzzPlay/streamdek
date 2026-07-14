@@ -9,19 +9,16 @@ describe('StateStore', () => {
   });
 
   describe('initial state', () => {
-    it('should have default values', () => {
+    it('should have default values matching real API', () => {
       const state = store.getState();
 
       expect(state.volume).toBe(100);
       expect(state.isPlaying).toBe(false);
-      expect(state.currentTrack).toBeNull();
-      expect(state.currentArtist).toBeNull();
-      expect(state.currentAlbum).toBeNull();
-      expect(state.currentPosition).toBe(0);
-      expect(state.trackDuration).toBe(0);
-      expect(state.isMuted).toBe(false);
-      expect(state.isShuffled).toBe(false);
-      expect(state.repeatMode).toBe('off');
+      expect(state.song).toBeNull();
+      expect(state.position).toBe(0);
+      expect(state.muted).toBe(false);
+      expect(state.shuffle).toBe(false);
+      expect(state.repeat).toBe('off');
       expect(state.isLiked).toBe(false);
       expect(state.isDisliked).toBe(false);
     });
@@ -29,7 +26,10 @@ describe('StateStore', () => {
     it('should return individual fields via get()', () => {
       expect(store.get('volume')).toBe(100);
       expect(store.get('isPlaying')).toBe(false);
-      expect(store.get('repeatMode')).toBe('off');
+      expect(store.get('repeat')).toBe('off');
+      expect(store.get('position')).toBe(0);
+      expect(store.get('muted')).toBe(false);
+      expect(store.get('shuffle')).toBe(false);
     });
   });
 
@@ -40,18 +40,18 @@ describe('StateStore', () => {
       expect(store.get('isPlaying')).toBe(true);
       expect(store.get('volume')).toBe(75);
       // Unchanged fields retain defaults
-      expect(store.get('isMuted')).toBe(false);
-      expect(store.get('repeatMode')).toBe('off');
+      expect(store.get('muted')).toBe(false);
+      expect(store.get('repeat')).toBe('off');
     });
 
     it('should update multiple unrelated fields across calls', () => {
       store.update({ isPlaying: true });
-      store.update({ isShuffled: true });
-      store.update({ repeatMode: 'one' });
+      store.update({ shuffle: true });
+      store.update({ repeat: 'one' });
 
       expect(store.get('isPlaying')).toBe(true);
-      expect(store.get('isShuffled')).toBe(true);
-      expect(store.get('repeatMode')).toBe('one');
+      expect(store.get('shuffle')).toBe(true);
+      expect(store.get('repeat')).toBe('one');
       expect(store.get('volume')).toBe(100); // untouched
     });
 
@@ -73,18 +73,44 @@ describe('StateStore', () => {
       expect(state.isPlaying).toBe(false);
     });
 
-    it('should update track metadata fields', () => {
+    it('should update song metadata (from PLAYER_INFO / VIDEO_CHANGED)', () => {
       store.update({
-        currentTrack: 'Bohemian Rhapsody',
-        currentArtist: 'Queen',
-        currentAlbum: 'A Night at the Opera',
-        trackDuration: 354,
+        song: {
+          title: 'Bohemian Rhapsody',
+          artist: 'Queen',
+          album: 'A Night at the Opera',
+          duration: 354,
+          thumbnailUrl: 'https://example.com/thumb.jpg',
+        },
       });
 
-      expect(store.get('currentTrack')).toBe('Bohemian Rhapsody');
-      expect(store.get('currentArtist')).toBe('Queen');
-      expect(store.get('currentAlbum')).toBe('A Night at the Opera');
-      expect(store.get('trackDuration')).toBe(354);
+      expect(store.get('song')).toEqual({
+        title: 'Bohemian Rhapsody',
+        artist: 'Queen',
+        album: 'A Night at the Opera',
+        duration: 354,
+        thumbnailUrl: 'https://example.com/thumb.jpg',
+      });
+    });
+
+    it('should update position from POSITION_CHANGED event', () => {
+      store.update({ position: 142 });
+
+      expect(store.get('position')).toBe(142);
+    });
+
+    it('should update muted state from VOLUME_CHANGED event', () => {
+      store.update({ muted: true, volume: 100 });
+
+      expect(store.get('muted')).toBe(true);
+      expect(store.get('volume')).toBe(100);
+    });
+
+    it('should update shuffle from SHUFFLE_CHANGED event', () => {
+      store.update({ shuffle: true });
+
+      expect(store.get('shuffle')).toBe(true);
+      expect(store.get('shuffle')).not.toBe(false);
     });
   });
 
@@ -93,13 +119,6 @@ describe('StateStore', () => {
       store.update({ volume: 42 });
 
       expect(store.get('volume')).toBe(42);
-    });
-
-    it('should track muted state from WS event', () => {
-      store.update({ isMuted: true, volume: 100 });
-
-      expect(store.get('isMuted')).toBe(true);
-      expect(store.get('volume')).toBe(100);
     });
   });
 
@@ -146,8 +165,7 @@ describe('StateStore', () => {
     it('should pass delta to subscribers', () => {
       const listener = jest.fn();
       store.subscribe(listener);
-      const delta = { isLiked: true };
-      store.update(delta);
+      store.update({ isLiked: true });
 
       expect(listener).toHaveBeenCalledWith(
         expect.objectContaining({ isLiked: true })

@@ -4,77 +4,153 @@ import { wsClient } from './common/ws-client.js';
 import { stateStore } from './common/state-store.js';
 import { initConnectionManager } from './common/connection-manager.js';
 import { logger } from './common/logger.js';
+import { DEFAULT_HOST, DEFAULT_PORT } from './common/endpoints.js';
+import type { PluginSettings } from './common/types.js';
 
 // Import action classes (decorators auto-register them with the SDK)
 import './actions/keypad-actions.js';
 import './actions/encoder-actions.js';
 
 /**
+ * Generate a persistent client ID for this Stream Deck instance.
+ * Stored in global settings so it survives plugin restarts.
+ */
+function generateClientId(): string {
+  const randomPart = Math.random().toString(36).substring(2, 10);
+  return `streamdek-${randomPart}`;
+}
+
+/**
  * Streamdek plugin entry point.
  *
- * 1. Initialize singleton services
- * 2. Connect to pear-desktop when settings are available
- * 3. Register actions (done via @action decorators on import)
+ * Flow:
+ *  1. Load or generate a persistent clientId
+ *  2. Connect to pear-desktop (probe host:port)
+ *  3. Authenticate via POST /auth/{clientId}
+ *  4. Start WebSocket for real-time state updates
+ *  5. Subscribe WS events to StateStore
  */
 async function main(): Promise<void> {
   // Initialize connection manager with injected services
   const connectionManager = initConnectionManager(apiClient, wsClient);
 
   // Load saved settings and attempt auto-connect
-  streamDeck.settings.getGlobalSettings().then((settings: any) => {
-    const host = settings.host || 'localhost';
-    const port = settings.port || 26538;
-    const jwt = settings.jwt || '';
+  const settings = await streamDeck.settings.getGlobalSettings() as PluginSettings;
+  const host = settings.host || DEFAULT_HOST;
+  const port = settings.port || DEFAULT_PORT;
 
-    if (jwt) {
-      logger.info(`Connecting to pear-desktop at ${host}:${port}`);
-      connectionManager.connect(host, port, jwt);
-    } else {
-      logger.info('No JWT configured — waiting for Property Inspector setup');
+  // Generate or retrieve persistent clientId
+  let clientId = settings.clientId;
+  if (!clientId) {
+    clientId = generateClientId();
+    await streamDeck.settings.setGlobalSettings({
+      ...settings,
+      clientId,
+    });
+    logger.info(`Generated new clientId: ${clientId}`);
+  }
+
+  // Load existing access token if available
+  if (settings.accessToken) {
+    apiClient.setToken(settings.accessToken);
+  }
+
+  // Subscribe WS events to StateStore using real pear-desktop event types
+  wsClient.subscribe('PLAYER_INFO', (data: any) => {
+    stateStore.update({
+      song: data.song ?? null,
+      isPlaying: data.isPlaying ?? false,
+      volume: data.volume ?? 100,
+      muted: data.muted ?? false,
+      shuffle: data.shuffle ?? false,
+      repeat: data.repeat ?? 'off',
+      position: data.position ?? 0,
+      isLiked: data.isLiked ?? false,
+      isDisliked: data.isDisliked ?? false,
+    });
+  });
+
+  wsClient.subscribe('PLAYER_STATE_CHANGED', (data: any) => {
+    stateStore.update({
+      isPlaying: data.isPlaying,
+    });
+  });
+
+  wsClient.subscribe('VIDEO_CHANGED', (data: any) => {
+    if (data.song) {
+      stateStore.update({ song: data.song });
     }
   });
 
-  // Subscribe WS events to StateStore
-  wsClient.subscribe('player:state', (data: any) => {
+  wsClient.subscribe('POSITION_CHANGED', (data: any) => {
     stateStore.update({
-      isPlaying: data.isPlaying,
-      currentPosition: data.currentPosition,
-      trackDuration: data.trackDuration,
+      position: data.position,
     });
   });
 
-  wsClient.subscribe('player:track', (data: any) => {
-    stateStore.update({
-      currentTrack: data.title,
-      currentArtist: data.artist,
-      currentAlbum: data.album,
-    });
-  });
-
-  wsClient.subscribe('player:volume', (data: any) => {
+  wsClient.subscribe('VOLUME_CHANGED', (data: any) => {
     stateStore.update({
       volume: data.volume,
-      isMuted: data.isMuted,
+      muted: data.muted,
     });
   });
 
-  wsClient.subscribe('player:like', (data: any) => {
+  wsClient.subscribe('REPEAT_CHANGED', (data: any) => {
     stateStore.update({
-      isLiked: data.isLiked,
-      isDisliked: data.isDisliked,
+      repeat: data.repeat,
     });
   });
 
-  wsClient.subscribe('player:shuffle', (data: any) => {
+  wsClient.subscribe('SHUFFLE_CHANGED', (data: any) => {
     stateStore.update({
-      isShuffled: data.isShuffled,
+      shuffle: data.shuffle,
     });
   });
 
-  wsClient.subscribe('player:repeat', (data: any) => {
-    stateStore.update({
-      repeatMode: data.repeatMode,
-    });
+  // Connect and authenticate
+  logger.info(`Connecting to pear-desktop at ${host}:${port}`);
+  connectionManager.connect(host, port);
+
+  // Listen for state changes to initiate auth when probe succeeds
+  connectionManager.onStateChange(async (state) => {
+    if (state === 'connected') {
+      logger.info('Probe successful — initiating authentication');
+      try {
+        await connectionManager.authenticate(clientId!);
+        logger.info('Authentication successful');
+        // Persist access token for reconnection
+        await streamDeck.settings.setGlobalSettings({
+          ...settings,
+          clientId,
+          host,
+          port,
+          accessToken: apiClient['accessToken'], // internal access, needed for persistence
+        });
+      } catch (err) {
+        logger.error(`Authentication failed: ${String(err)}`);
+      }
+    }
+
+    if (state === 'disconnected') {
+      logger.info('Disconnected from pear-desktop');
+    }
+  });
+
+  // Listen for settings changes from Property Inspector to reconnect
+  streamDeck.settings.onDidReceiveGlobalSettings(async (ev: any) => {
+    const newSettings = ev.payload?.settings as PluginSettings;
+    if (!newSettings) return;
+
+    const newHost = newSettings.host || DEFAULT_HOST;
+    const newPort = newSettings.port || DEFAULT_PORT;
+
+    logger.info(`Settings changed — reconnecting to ${newHost}:${newPort}`);
+    connectionManager.disconnect();
+    connectionManager.connect(newHost, newPort);
+
+    if (newSettings.clientId) {
+      clientId = newSettings.clientId;
+    }
   });
 
   // Connect to Stream Deck

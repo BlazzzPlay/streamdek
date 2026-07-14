@@ -47,6 +47,7 @@
       outline: none;
     }
     input:focus { border-color: var(--accent); }
+    input:disabled { opacity: 0.5; cursor: not-allowed; }
     .row {
       display: flex;
       gap: 8px;
@@ -84,6 +85,14 @@
     #status.success { background: rgba(81,207,102,0.15); color: var(--success); }
     #status.error { background: rgba(255,107,107,0.15); color: var(--error); }
     #status.info { background: rgba(0,212,255,0.1); color: var(--accent); }
+    .mono {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 11px;
+      background: rgba(0,212,255,0.1);
+      padding: 4px 8px;
+      border-radius: 4px;
+      word-break: break-all;
+    }
     hr {
       border: none;
       border-top: 1px solid var(--border);
@@ -127,27 +136,34 @@
     </div>
   </div>
 
-  <label for="jwt">JWT Token</label>
-  <input type="password" id="jwt" placeholder="Paste your pear-desktop API token">
-
   <div id="status"></div>
 
-  <button id="discover">Auto-Discover</button>
-  <button id="save">Save Settings</button>
+  <button id="discover">Probe Connection</button>
+  <button id="authorize">Connect &amp; Authorize</button>
+
+  <div id="clientInfo" style="display: none; margin-bottom: 12px;">
+    <label>Client ID</label>
+    <div class="mono" id="clientIdDisplay"></div>
+  </div>
+
+  <div id="authSection" style="display: none;">
+    <label>Authorization Status</label>
+    <div id="authStatus" style="font-size: 13px; padding: 8px; border-radius: 6px; background: var(--surface);"></div>
+  </div>
 
   <hr>
 
   <div class="guide">
     <h3>API Server Activation Guide</h3>
-    <p>To use Streamdek, you need to enable the API Server in pear-desktop:</p>
+    <p>Streamdek uses pear-desktop's API Server for auto-authorization. No manual tokens required.</p>
     <ol>
       <li>Open <strong>pear-desktop</strong></li>
       <li>Go to <strong>Settings → API Server</strong></li>
       <li>Check <strong>Enable API Server</strong></li>
-      <li>Set port to <code>26538</code></li>
-      <li>Click <strong>Generate Token</strong> to create a JWT</li>
-      <li>Copy the token and paste it in the field above</li>
-      <li>Click <strong>Save Settings</strong></li>
+      <li>Set port to <code>26538</code> (default)</li>
+      <li>In Streamdek, click <strong>Connect &amp; Authorize</strong></li>
+      <li>pear-desktop will show a dialog — click <strong>Allow</strong></li>
+      <li>Streamdek connects automatically</li>
     </ol>
     <p style="margin-top: 8px; color: #aaa;">
       If auto-discovery fails, make sure pear-desktop is running and the API server is enabled.

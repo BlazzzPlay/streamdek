@@ -1,18 +1,22 @@
 /**
  * Player state cached from WebSocket events.
  * Volume is WS-only per bug #4458 — never read-modify-write via REST.
+ * Field names match the real pear-desktop API Server WS event payload.
  */
 export interface PlayerState {
   volume: number; // 0–100
   isPlaying: boolean;
-  currentTrack: string | null;
-  currentArtist: string | null;
-  currentAlbum: string | null;
-  currentPosition: number; // seconds
-  trackDuration: number; // seconds
-  isMuted: boolean;
-  isShuffled: boolean;
-  repeatMode: 'off' | 'one' | 'all';
+  song: {
+    title: string;
+    artist: string;
+    album: string;
+    duration: number; // seconds
+    thumbnailUrl: string;
+  } | null;
+  position: number; // seconds
+  muted: boolean;
+  shuffle: boolean;
+  repeat: 'off' | 'one' | 'all';
   isLiked: boolean;
   isDisliked: boolean;
 }
@@ -22,7 +26,7 @@ export type ConnectionState =
   | 'disconnected'
   | 'connecting'
   | 'connected'
-  | 'authenticating'
+  | 'waiting_for_auth'
   | 'authenticated';
 
 /** JSON-compatible value type (recursive) */
@@ -32,19 +36,20 @@ type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string
 export interface PluginSettings {
   host?: string;
   port?: number;
-  jwt?: string;
+  clientId?: string;
+  accessToken?: string;
   [key: string]: JsonValue | undefined;
 }
 
-/** Peer-desktop WebSocket event types mapped to handler signatures */
+/** pear-desktop WebSocket event types from the real API Server */
 export type WsEventType =
-  | 'player:state'
-  | 'player:track'
-  | 'player:playback'
-  | 'player:volume'
-  | 'player:like'
-  | 'player:shuffle'
-  | 'player:repeat';
+  | 'PLAYER_INFO'
+  | 'VIDEO_CHANGED'
+  | 'PLAYER_STATE_CHANGED'
+  | 'POSITION_CHANGED'
+  | 'VOLUME_CHANGED'
+  | 'REPEAT_CHANGED'
+  | 'SHUFFLE_CHANGED';
 
 /** Callback for WebSocket event subscribers */
 export type WsEventHandler = (data: unknown) => void;

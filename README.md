@@ -26,10 +26,12 @@ Streamdek es un plugin para Elgato Stream Deck que ofrece control completo de me
 | **Seek** | Girar: ±5s. Presionar: play/pause. Pantalla táctil: posición del track |
 
 ### Arquitectura
-- **REST** (`/api/v1/*`) con autenticación JWT Bearer para comandos
-- **WebSocket** (`/ws`) con JWT en el primer frame para estado en tiempo real
+- **Auth** (`POST /auth/{clientId}`) — autorización nativa: pear-desktop muestra diálogo, usuario hace clic en Allow
+- **REST** (`/api/v1/*`) con token Bearer para comandos
+- **WebSocket** (`/api/v1/ws?token=<jwt>`) con token como query param para estado en tiempo real
 - **StateStore** cachea el estado del reproductor desde eventos WS (volumen solo por WS debido al bug #4458)
-- **ConnectionManager** auto-detecta pear-desktop, maneja la máquina de estados con reconexión exponencial (1s → 60s máximo)
+- **ConnectionManager** maneja la máquina de estados: probe → connected → waiting_for_auth → authenticated
+- **Reconexión** con backoff exponencial (1s → 60s máximo)
 - **Aislamiento de errores por acción**: cada acción muestra un ícono de advertencia al desconectarse
 
 ---
@@ -80,18 +82,18 @@ streamdeck restart com.streamdek.sdplugin
 2. Andá a **Configuración → API Server**
 3. Activá **Enable API Server**
 4. Puerto `26538` (por defecto)
-5. Hacé clic en **Generate Token** para crear un JWT
 
 ### 2. Configurar Streamdek
 
 1. Abrí la aplicación Stream Deck
 2. Arrastrá cualquier acción de Streamdek a tu layout
 3. El **Property Inspector** se abre automáticamente
-4. Hacé clic en **Auto-Discover** para detectar pear-desktop
-5. Pegá tu token JWT en el campo correspondiente
-6. Hacé clic en **Save Settings**
+4. Hacé clic en **Probe Connection** para verificar que pear-desktop es accesible
+5. Hacé clic en **Connect & Authorize**
+6. pear-desktop te muestra un diálogo — hacé clic en **Allow**
+7. El plugin se conecta automáticamente y muestra el estado del reproductor en los botones
 
-El plugin se conecta automáticamente y muestra el estado del reproductor en los botones.
+> **Sin tokens manuales**: Streamdek usa el flow de autorización nativo de pear-desktop. No necesitás copiar ni pegar ningún JWT.
 
 ---
 
@@ -163,9 +165,10 @@ Streamdek is an Elgato Stream Deck plugin that provides full media control for p
 | **Keypad (7)** | Play/Pause, Next Track, Previous Track, Like, Dislike, Shuffle, Repeat |
 | **Encoder (2)** | Volume (rotate ±2, press to mute), Seek (rotate ±5s, press to play/pause) |
 
-- **REST API** with JWT Bearer auth for commands
-- **WebSocket** with JWT first-frame auth for real-time player state
-- **Auto-discovery** of pear-desktop on localhost:26538
+- **Native auth flow** — pear-desktop dialog, no manual JWT
+- **REST API** with Bearer token for commands
+- **WebSocket** with token as URL query param for real-time player state
+- **Auto-probe** of pear-desktop on configurable host:port
 - **Per-action disconnect warnings** on both Keypad and Encoder displays
 - **Exponential backoff** reconnection (1s → 60s cap)
 
@@ -180,9 +183,12 @@ pnpm build
 ### Activation
 
 1. Enable **API Server** in pear-desktop settings
-2. Generate a JWT token
-3. Add any Streamdek action to your Stream Deck layout
-4. Use **Auto-Discover** in the Property Inspector and paste your token
+2. Add any Streamdek action to your Stream Deck layout
+3. Use **Probe Connection** in the Property Inspector to verify reachability
+4. Click **Connect & Authorize** — pear-desktop will show a dialog
+5. Click **Allow** in pear-desktop — Streamdek connects automatically
+
+> **No manual tokens**: Streamdek uses pear-desktop's native authorization flow. No JWT copying needed.
 
 ### Dev
 

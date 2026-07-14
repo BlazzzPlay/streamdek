@@ -6,9 +6,16 @@ import type { WsClient } from './ws-client.js';
 type StateListener = (state: ConnectionState) => void;
 
 /**
- * Manages connection lifecycle to pear-desktop.
- * Auto-probes the endpoint (≤3s timeout), manages state transitions,
- * and propagates connection state to all subscribers.
+ * Manages connection lifecycle to pear-desktop API Server.
+ *
+ * Flow:
+ *   1. connect(host, port) → probe TCP/HTTP reachability
+ *   2. Probe OK → state 'connected'
+ *   3. authenticate(clientId) → POST /auth/{clientId}
+ *      a. pear-desktop shows user a dialog
+ *      b. User clicks Allow → returns { accessToken }
+ *      c. Stores token, transitions to 'authenticated'
+ *   4. Start WebSocket for real-time events
  */
 export class ConnectionManager {
   private apiClient: ApiClient;
@@ -16,9 +23,9 @@ export class ConnectionManager {
   private state: ConnectionState = 'disconnected';
   private listeners = new Set<StateListener>();
   private probeTimer: ReturnType<typeof setTimeout> | null = null;
-  private currentJwt = '';
   private currentHost = DEFAULT_HOST;
   private currentPort = DEFAULT_PORT;
+  private currentToken = '';
 
   constructor(apiClient: ApiClient, wsClient: WsClient) {
     this.apiClient = apiClient;
@@ -36,19 +43,36 @@ export class ConnectionManager {
   }
 
   /**
-   * Initiate connection: probe → WS connect → authenticate.
-   * Updates ApiClient config before connecting.
+   * Initiate connection: probe the host/port to verify reachability.
+   * Does NOT perform authentication — call authenticate() after probe succeeds.
    */
-  connect(host: string, port: number, jwt: string): void {
+  connect(host: string, port: number): void {
     this.currentHost = host;
     this.currentPort = port;
-    this.currentJwt = jwt;
 
     this.apiClient.setBaseUrl(host, port);
-    this.apiClient.setJwt(jwt);
 
     this.transition('connecting');
     this.startProbe();
+  }
+
+  /**
+   * Authenticate with pear-desktop using the API Server auth flow.
+   * POST /auth/{clientId} — user sees a dialog in pear-desktop.
+   * On success, stores the access token and starts the WebSocket connection.
+   */
+  async authenticate(clientId: string): Promise<void> {
+    this.transition('waiting_for_auth');
+
+    try {
+      const token = await this.apiClient.authenticate(clientId);
+      this.currentToken = token;
+      this.apiClient.setToken(token);
+      this.transition('authenticated');
+      this.startWsConnection();
+    } catch {
+      this.transition('disconnected');
+    }
   }
 
   /** Disconnect WebSocket and reset to disconnected state */
@@ -88,7 +112,7 @@ export class ConnectionManager {
   private startProbe(): void {
     this.clearProbe();
 
-    const probeUrl = `http://${this.currentHost}:${this.currentPort}/api/v1/status`;
+    const probeUrl = `http://${this.currentHost}:${this.currentPort}/`;
     const controller = new AbortController();
 
     this.probeTimer = setTimeout(() => {
@@ -97,16 +121,10 @@ export class ConnectionManager {
       this.transition('disconnected');
     }, PROBE_TIMEOUT_MS);
 
-    fetch(probeUrl, {
-      signal: controller.signal,
-      headers: this.currentJwt
-        ? { Authorization: `Bearer ${this.currentJwt}` }
-        : undefined,
-    })
+    fetch(probeUrl, { signal: controller.signal })
       .then(() => {
         this.clearProbe();
         this.transition('connected');
-        this.startWsConnection();
       })
       .catch(() => {
         this.clearProbe();
@@ -116,22 +134,13 @@ export class ConnectionManager {
   }
 
   private startWsConnection(): void {
-    const wsUrl = `ws://${this.currentHost}:${this.currentPort}/ws`;
+    const baseUrl = `http://${this.currentHost}:${this.currentPort}`;
 
     this.wsClient.onReconnect = (_delay: number) => {
       this.transition('connecting');
     };
 
-    this.wsClient.connect(wsUrl, this.currentJwt);
-    this.transition('authenticating');
-
-    // Listen for auth confirmation
-    this.wsClient.subscribe('player:state', () => {
-      // First player:state event means we're authenticated
-      if (this.state !== 'authenticated') {
-        this.transition('authenticated');
-      }
-    });
+    this.wsClient.connect(baseUrl, this.currentToken);
   }
 
   private clearProbe(): void {

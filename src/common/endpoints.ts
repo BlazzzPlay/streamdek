@@ -1,18 +1,22 @@
 /** Base path for pear-desktop REST API */
 export const API_BASE = '/api/v1';
 
-/** REST endpoint paths */
+/** Authentication endpoint */
+export const AUTH_PATH = '/auth';
+
+/** REST endpoint paths — match the real pear-desktop API Server */
 export const ENDPOINTS = {
-  PLAY_PAUSE: `${API_BASE}/play-pause`,
+  TOGGLE_PLAY: `${API_BASE}/toggle-play`,
   NEXT: `${API_BASE}/next`,
   PREVIOUS: `${API_BASE}/previous`,
   LIKE: `${API_BASE}/like`,
   DISLIKE: `${API_BASE}/dislike`,
   SHUFFLE: `${API_BASE}/shuffle`,
-  REPEAT: `${API_BASE}/repeat`,
+  SWITCH_REPEAT: `${API_BASE}/switch-repeat`,
   VOLUME: `${API_BASE}/volume`,
-  SEEK: `${API_BASE}/seek`,
-  STATUS: `${API_BASE}/status`,
+  TOGGLE_MUTE: `${API_BASE}/toggle-mute`,
+  SEEK_TO: `${API_BASE}/seek-to`,
+  SONG: `${API_BASE}/song`,
 } as const;
 
 /** Default pear-desktop host and port */
@@ -25,5 +29,8 @@ export const PROBE_TIMEOUT_MS = 3000;
 /** REST request timeout in milliseconds */
 export const REQUEST_TIMEOUT_MS = 5000;
 
-/** WebSocket path */
-export const WS_PATH = '/ws';
+/** Authentication timeout in milliseconds */
+export const AUTH_TIMEOUT_MS = 30000;
+
+/** WebSocket path — token is passed as query param */
+export const WS_PATH = '/api/v1/ws';

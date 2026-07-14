@@ -69,10 +69,10 @@ export class VolumeAction extends BaseEncoderAction {
       const ticks = ev.payload.ticks;
       const delta = ticks * 2; // ±2 per tick
       const currentVol = stateStore.get('volume');
-      const isMuted = stateStore.get('isMuted');
+      const muted = stateStore.get('muted');
 
       // If muted and rotating up, unmute first
-      if (isMuted && delta > 0) {
+      if (muted && delta > 0) {
         // Unmute at current volume level
         const newVol = Math.max(0, Math.min(100, currentVol));
         await apiClient.setVolume(newVol);
@@ -88,8 +88,8 @@ export class VolumeAction extends BaseEncoderAction {
 
   async onDialDown(ev: DialDownEvent<PluginSettings>): Promise<void> {
     await this.executeIfReady(async () => {
-      const isMuted = stateStore.get('isMuted');
-      if (isMuted) {
+      const muted = stateStore.get('muted');
+      if (muted) {
         const currentVol = stateStore.get('volume');
         await apiClient.setVolume(currentVol);
         this.updateFeedback(`Vol: ${currentVol}`);
@@ -116,18 +116,19 @@ export class SeekAction extends BaseEncoderAction {
     await this.executeIfReady(async () => {
       const ticks = ev.payload.ticks;
       const delta = ticks * 5; // ±5s per tick
-      const currentPos = stateStore.get('currentPosition');
-      const duration = stateStore.get('trackDuration');
+      const currentPos = stateStore.get('position');
+      const song = stateStore.get('song');
+      const duration = song?.duration ?? 0;
 
       const newPos = Math.max(0, Math.min(duration || 9999, currentPos + delta));
-      await apiClient.seek(newPos);
+      await apiClient.seekTo(newPos);
       this.updateFeedback(formatTime(newPos));
     });
   }
 
   async onDialDown(_ev: DialDownEvent<PluginSettings>): Promise<void> {
     await this.executeIfReady(async () => {
-      await apiClient.playPause();
+      await apiClient.togglePlay();
     });
   }
 }

@@ -13,13 +13,14 @@ export class ApiError extends Error {
 }
 
 /**
- * REST client for pear-desktop API.
- * Handles JWT Bearer auth, 5s timeout, single retry on network errors.
+ * REST client for pear-desktop API Server.
+ * Implements the real auth flow: POST /auth/{clientId} returns { accessToken }.
+ * All subsequent /api/* calls use Authorization: Bearer <accessToken>.
  * Volume should NEVER be read-modify-write via REST (bug #4458).
  */
 export class ApiClient {
   private baseUrl = '';
-  private jwt = '';
+  private accessToken = '';
   private fetchFn: typeof fetch;
 
   constructor(fetchFn: typeof fetch = globalThis.fetch) {
@@ -31,9 +32,31 @@ export class ApiClient {
     this.baseUrl = `http://${host}:${port}`;
   }
 
-  /** Set the JWT token for authentication */
-  setJwt(token: string): void {
-    this.jwt = token;
+  /** Set the access token from the auth flow */
+  setToken(token: string): void {
+    this.accessToken = token;
+  }
+
+  /**
+   * Authenticate with pear-desktop API Server.
+   * Calls POST /auth/{clientId} — pear-desktop shows a dialog to the user.
+   * On approval, returns { accessToken: "<jwt>" }.
+   * The returned token is used as Bearer token for all /api/* calls.
+   */
+  async authenticate(clientId: string): Promise<string> {
+    const url = `${this.baseUrl}/auth/${encodeURIComponent(clientId)}`;
+    const response = await this.fetchFn(url, { method: 'POST' });
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      throw new ApiError(
+        `Auth failed: ${response.status} ${text}`,
+        response.status,
+      );
+    }
+
+    const body = (await response.json()) as { accessToken: string };
+    return body.accessToken;
   }
 
   /** Perform a GET request with timeout and retry */
@@ -47,16 +70,10 @@ export class ApiClient {
     return this.requestWithRetry('POST', path, bodyStr);
   }
 
-  /** Perform a PUT request with timeout and retry */
-  async put(path: string, body?: unknown): Promise<Response> {
-    const bodyStr = body ? JSON.stringify(body) : undefined;
-    return this.requestWithRetry('PUT', path, bodyStr);
-  }
+  // ─── Convenience methods — match real pear-desktop API Server endpoints ────
 
-  // ─── Convenience methods ────────────────────────────────────────────
-
-  playPause(): Promise<Response> {
-    return this.post('/api/v1/play-pause');
+  togglePlay(): Promise<Response> {
+    return this.post('/api/v1/toggle-play');
   }
 
   next(): Promise<Response> {
@@ -79,18 +96,28 @@ export class ApiClient {
     return this.post('/api/v1/shuffle');
   }
 
-  repeat(): Promise<Response> {
-    return this.post('/api/v1/repeat');
+  /** Switch repeat mode: 0=off, 1=one, 2=all */
+  switchRepeat(iteration: number): Promise<Response> {
+    return this.post('/api/v1/switch-repeat', { iteration });
   }
 
   /** Set absolute volume (0–100). Never reads current volume (bug #4458). */
   setVolume(volume: number): Promise<Response> {
-    return this.put('/api/v1/volume', { volume });
+    return this.post('/api/v1/volume', { volume });
+  }
+
+  toggleMute(): Promise<Response> {
+    return this.post('/api/v1/toggle-mute');
   }
 
   /** Seek to absolute position in seconds. */
-  seek(position: number): Promise<Response> {
-    return this.post('/api/v1/seek', { position });
+  seekTo(seconds: number): Promise<Response> {
+    return this.post('/api/v1/seek-to', { seconds });
+  }
+
+  /** Get current song info. */
+  getSong(): Promise<Response> {
+    return this.get('/api/v1/song');
   }
 
   // ─── Private helpers ───────────────────────────────────────────────
@@ -109,7 +136,7 @@ export class ApiClient {
       if (response.status === 401) {
         // 401 is never retried — the token is invalid
         throw new ApiError(
-          'Unauthorized: check your JWT token',
+          'Unauthorized: check your access token',
           response.status,
         );
       }
@@ -149,9 +176,11 @@ export class ApiClient {
 
     try {
       const url = `${this.baseUrl}${path}`;
-      const headers: Record<string, string> = {
-        Authorization: `Bearer ${this.jwt}`,
-      };
+      const headers: Record<string, string> = {};
+
+      if (this.accessToken) {
+        headers['Authorization'] = `Bearer ${this.accessToken}`;
+      }
 
       if (body) {
         headers['Content-Type'] = 'application/json';
