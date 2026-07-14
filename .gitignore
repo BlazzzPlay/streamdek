@@ -1,0 +1,5 @@
+node_modules/
+com.streamdek.sdPlugin/bin/
+*.js.map
+coverage/
+.DS_Store

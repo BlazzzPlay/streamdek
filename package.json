@@ -1,0 +1,43 @@
+{
+  "name": "com.streamdek.sdplugin",
+  "version": "1.0.0",
+  "description": "Stream Deck plugin to control pear-desktop (YouTube Music player)",
+  "main": "com.streamdek.sdPlugin/bin/plugin.js",
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "build": "rollup -c",
+    "dev": "rollup -c -w",
+    "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
+    "test:coverage": "NODE_OPTIONS='--experimental-vm-modules' jest --coverage",
+    "test:common": "NODE_OPTIONS='--experimental-vm-modules' jest --testPathPatterns='common/'",
+    "test:actions": "NODE_OPTIONS='--experimental-vm-modules' jest --testPathPatterns='actions/'",
+    "typecheck": "tsc --noEmit",
+    "reload": "streamdeck restart com.streamdek.sdplugin"
+  },
+  "keywords": [
+    "stream-deck",
+    "elgato",
+    "youtube-music",
+    "pear-desktop"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@elgato/streamdeck": "^2.0.0"
+  },
+  "devDependencies": {
+    "@rollup/plugin-json": "^6.1.0",
+    "@rollup/plugin-node-resolve": "^16.0.0",
+    "@rollup/plugin-typescript": "^12.1.0",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.0.0",
+    "jest": "^30.4.1",
+    "rollup": "^4.40.0",
+    "ts-jest": "^29.3.0",
+    "tslib": "^2.8.0",
+    "typescript": "^5.8.0",
+    "ws": "^8.18.0"
+  }
+}

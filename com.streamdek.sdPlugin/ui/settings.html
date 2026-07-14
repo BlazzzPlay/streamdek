@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Streamdek — Settings</title>
+  <style>
+    :root {
+      --bg: #1a1a2e;
+      --surface: #16213e;
+      --text: #e0e0e0;
+      --accent: #00d4ff;
+      --error: #ff6b6b;
+      --success: #51cf66;
+      --border: #2a2a4a;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 16px;
+      font-size: 13px;
+    }
+    h2 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: var(--accent);
+    }
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      margin-bottom: 4px;
+      color: #aaa;
+    }
+    input {
+      width: 100%;
+      padding: 6px 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 13px;
+      margin-bottom: 12px;
+      outline: none;
+    }
+    input:focus { border-color: var(--accent); }
+    .row {
+      display: flex;
+      gap: 8px;
+    }
+    .row > div { flex: 1; }
+    button {
+      width: 100%;
+      padding: 8px;
+      background: var(--accent);
+      color: var(--bg);
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 4px;
+      margin-bottom: 16px;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    button.secondary {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    #status {
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      margin-bottom: 12px;
+      min-height: 20px;
+    }
+    #status.success { background: rgba(81,207,102,0.15); color: var(--success); }
+    #status.error { background: rgba(255,107,107,0.15); color: var(--error); }
+    #status.info { background: rgba(0,212,255,0.1); color: var(--accent); }
+    hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 16px 0;
+    }
+    .guide {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+    .guide h3 {
+      font-size: 13px;
+      margin-bottom: 8px;
+      color: var(--accent);
+    }
+    .guide ol {
+      padding-left: 18px;
+    }
+    .guide code {
+      background: rgba(0,212,255,0.1);
+      padding: 1px 4px;
+      border-radius: 3px;
+      font-size: 11px;
+    }
+  </style>
+</head>
+<body>
+  <h2>Connection Settings</h2>
+
+  <div class="row">
+    <div>
+      <label for="host">Host</label>
+      <input type="text" id="host" placeholder="localhost" value="localhost">
+    </div>
+    <div>
+      <label for="port">Port</label>
+      <input type="number" id="port" placeholder="26538" value="26538">
+    </div>
+  </div>
+
+  <label for="jwt">JWT Token</label>
+  <input type="password" id="jwt" placeholder="Paste your pear-desktop API token">
+
+  <div id="status"></div>
+
+  <button id="discover">Auto-Discover</button>
+  <button id="save">Save Settings</button>
+
+  <hr>
+
+  <div class="guide">
+    <h3>API Server Activation Guide</h3>
+    <p>To use Streamdek, you need to enable the API Server in pear-desktop:</p>
+    <ol>
+      <li>Open <strong>pear-desktop</strong></li>
+      <li>Go to <strong>Settings → API Server</strong></li>
+      <li>Check <strong>Enable API Server</strong></li>
+      <li>Set port to <code>26538</code></li>
+      <li>Click <strong>Generate Token</strong> to create a JWT</li>
+      <li>Copy the token and paste it in the field above</li>
+      <li>Click <strong>Save Settings</strong></li>
+    </ol>
+    <p style="margin-top: 8px; color: #aaa;">
+      If auto-discovery fails, make sure pear-desktop is running and the API server is enabled.
+      The plugin probes <code>localhost:26538</code> automatically.
+    </p>
+  </div>
+
+  <script src="settings.js"></script>
+</body>
+</html>

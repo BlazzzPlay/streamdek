@@ -1,0 +1,203 @@
+{
+  "Actions": [
+    {
+      "UUID": "com.streamdek.play-pause",
+      "Icon": "imgs/actions/play-pause",
+      "Name": "Play / Pause",
+      "Controllers": ["Keypad"],
+      "States": [
+        {
+          "Image": "imgs/actions/play-pause/play"
+        },
+        {
+          "Image": "imgs/actions/play-pause/pause"
+        }
+      ],
+      "Tooltip": "Toggle playback",
+      "PropertyInspectorPath": "ui/settings.html"
+    },
+    {
+      "UUID": "com.streamdek.next-track",
+      "Icon": "imgs/actions/next-track",
+      "Name": "Next Track",
+      "Controllers": ["Keypad"],
+      "States": [
+        {
+          "Image": "imgs/actions/next-track/next"
+        }
+      ],
+      "Tooltip": "Skip to next track"
+    },
+    {
+      "UUID": "com.streamdek.previous-track",
+      "Icon": "imgs/actions/previous-track",
+      "Name": "Previous Track",
+      "Controllers": ["Keypad"],
+      "States": [
+        {
+          "Image": "imgs/actions/previous-track/prev"
+        }
+      ],
+      "Tooltip": "Go to previous track"
+    },
+    {
+      "UUID": "com.streamdek.like",
+      "Icon": "imgs/actions/like",
+      "Name": "Like",
+      "Controllers": ["Keypad"],
+      "States": [
+        {
+          "Image": "imgs/actions/like/like-off"
+        },
+        {
+          "Image": "imgs/actions/like/like-on"
+        }
+      ],
+      "Tooltip": "Like current track"
+    },
+    {
+      "UUID": "com.streamdek.dislike",
+      "Icon": "imgs/actions/dislike",
+      "Name": "Dislike",
+      "Controllers": ["Keypad"],
+      "States": [
+        {
+          "Image": "imgs/actions/dislike/dislike-off"
+        },
+        {
+          "Image": "imgs/actions/dislike/dislike-on"
+        }
+      ],
+      "Tooltip": "Dislike current track"
+    },
+    {
+      "UUID": "com.streamdek.shuffle",
+      "Icon": "imgs/actions/shuffle",
+      "Name": "Shuffle",
+      "Controllers": ["Keypad"],
+      "States": [
+        {
+          "Image": "imgs/actions/shuffle/shuffle-off"
+        },
+        {
+          "Image": "imgs/actions/shuffle/shuffle-on"
+        }
+      ],
+      "Tooltip": "Toggle shuffle"
+    },
+    {
+      "UUID": "com.streamdek.repeat",
+      "Icon": "imgs/actions/repeat",
+      "Name": "Repeat",
+      "Controllers": ["Keypad"],
+      "States": [
+        {
+          "Image": "imgs/actions/repeat/repeat-off"
+        },
+        {
+          "Image": "imgs/actions/repeat/repeat-one"
+        },
+        {
+          "Image": "imgs/actions/repeat/repeat-all"
+        }
+      ],
+      "Tooltip": "Cycle repeat mode"
+    },
+    {
+      "UUID": "com.streamdek.volume",
+      "Icon": "imgs/actions/volume",
+      "Name": "Volume",
+      "Controllers": ["Encoder"],
+      "States": [
+        {
+          "Image": "imgs/actions/volume/volume"
+        }
+      ],
+      "Tooltip": "Adjust volume (rotate) / mute (press)",
+      "Encoder": {
+        "background": "imgs/actions/volume/encoder-bg",
+        "Icon": "imgs/actions/volume/volume",
+        "StackColor": "#A0A0A0",
+        "TriggerDescription": {
+          "Rotate": "Volume",
+          "Push": "Mute",
+          "Touch": "Volume Value",
+          "LongTouch": "Volume Value"
+        }
+      },
+      "PropertyInspectorPath": "ui/settings.html"
+    },
+    {
+      "UUID": "com.streamdek.seek",
+      "Icon": "imgs/actions/seek",
+      "Name": "Seek",
+      "Controllers": ["Encoder"],
+      "States": [
+        {
+          "Image": "imgs/actions/seek/seek"
+        }
+      ],
+      "Tooltip": "Seek track (rotate) / play-pause (press)",
+      "Encoder": {
+        "background": "imgs/actions/seek/encoder-bg",
+        "Icon": "imgs/actions/seek/seek",
+        "StackColor": "#A0A0A0",
+        "TriggerDescription": {
+          "Rotate": "Seek",
+          "Push": "Play / Pause",
+          "Touch": "Track Position",
+          "LongTouch": "Track Position"
+        }
+      },
+      "PropertyInspectorPath": "ui/settings.html"
+    }
+  ],
+  "SDKVersion": 2,
+  "Name": "Streamdek",
+  "Description": "Control pear-desktop (YouTube Music) from your Stream Deck",
+  "Author": "Blazz",
+  "URL": "https://github.com/blazz/streamdek",
+  "Version": "1.0.0",
+  "Icon": "imgs/plugin/plugin",
+  "Category": "Streamdek",
+  "CategoryIcon": "imgs/category/category",
+  "CodePath": "bin/plugin.js",
+  "CodePathMac": "bin/plugin.js",
+  "CodePathWin": "bin/plugin.js",
+  "DefaultWindowSize": [500, 650],
+  "OS": [
+    {
+      "Platform": "mac",
+      "MinimumVersion": "12"
+    },
+    {
+      "Platform": "windows",
+      "MinimumVersion": "10"
+    }
+  ],
+  "Software": {
+    "MinimumVersion": "7.1"
+  },
+  "Profiles": [
+    {
+      "Name": "Default",
+      "ReadOnly": false,
+      "DeviceType": 0
+    },
+    {
+      "Name": "Default Plus",
+      "ReadOnly": false,
+      "DeviceType": 7
+    }
+  ],
+  "DefaultLanguage": "en",
+  "Nodejs": {
+    "Version": "24",
+    "Debug": "disabled"
+  },
+  "PropertyInspectorPath": "ui/settings.html",
+  "ApplicationsToMonitor": {
+    "mac": ["com.github.pear-desktop"],
+    "windows": ["pear-desktop.exe"]
+  }
+}
