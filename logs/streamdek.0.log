@@ -1,1 +1,0 @@
-2026-07-14T17:54:30.999Z ERROR Plugin startup failed: Error: Unable to establish a connection with Stream Deck, missing command line arguments: -port, -pluginUUID, -registerEvent, -info
