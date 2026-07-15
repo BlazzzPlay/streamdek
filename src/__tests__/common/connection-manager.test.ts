@@ -230,7 +230,7 @@ describe('ConnectionManager', () => {
 
       // After auth → wsClient.connect should be called with baseUrl + token
       expect(mockWs.connect).toHaveBeenCalledWith(
-        'http://localhost:26538',
+        'ws://localhost:26538',
         'returned-jwt-token',
       );
     });

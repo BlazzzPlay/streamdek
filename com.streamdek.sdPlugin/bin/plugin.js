@@ -440,11 +440,11 @@ class ConnectionManager {
         });
     }
     startWsConnection() {
-        const baseUrl = `http://${this.currentHost}:${this.currentPort}`;
+        const wsUrl = `ws://${this.currentHost}:${this.currentPort}`;
         this.wsClient.onReconnect = (_delay) => {
             this.transition('connecting');
         };
-        this.wsClient.connect(baseUrl, this.currentToken);
+        this.wsClient.connect(wsUrl, this.currentToken);
     }
     clearProbe() {
         if (this.probeTimer !== null) {

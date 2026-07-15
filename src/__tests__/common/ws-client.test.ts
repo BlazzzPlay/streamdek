@@ -48,14 +48,14 @@ describe('WsClient', () => {
       (MockWsCtor as Record<string, unknown>).OPEN = 1;
       const wsClient = new WsClient(MockWsCtor);
 
-      wsClient.connect('http://localhost:26538', 'api-token-456');
+      wsClient.connect('ws://localhost:26538', 'api-token-456');
 
       // The constructor should have been called with the full URL including token
-      expect(MockWsCtor).toHaveBeenCalledWith('http://localhost:26538/api/v1/ws?token=api-token-456');
+      expect(MockWsCtor).toHaveBeenCalledWith('ws://localhost:26538/api/v1/ws?token=api-token-456');
     });
 
     it('should not send auth frame after open (token is in URL)', () => {
-      client.connect('http://localhost:26538', 'test-token');
+      client.connect('ws://localhost:26538', 'test-token');
 
       // Simulate WebSocket open
       mockWs.readyState = 1; // OPEN
@@ -70,7 +70,7 @@ describe('WsClient', () => {
       (MockWsCtor as Record<string, unknown>).OPEN = 1;
       const wsClient = new WsClient(MockWsCtor);
 
-      wsClient.connect('http://localhost:26538', 'token');
+      wsClient.connect('ws://localhost:26538', 'token');
       // It should create the WebSocket regardless of readyState
       expect(MockWsCtor).toHaveBeenCalled();
     });
@@ -78,7 +78,7 @@ describe('WsClient', () => {
 
   describe('event pub/sub with real event types', () => {
     const connectClient = () => {
-      client.connect('http://localhost:26538', 'test-token');
+      client.connect('ws://localhost:26538', 'test-token');
       mockWs.readyState = 1;
       mockWs.dispatchEvent('open');
     };
@@ -222,7 +222,7 @@ describe('WsClient', () => {
 
   describe('disconnect', () => {
     it('should close WebSocket on disconnect', () => {
-      client.connect('http://localhost:26538', 'test-token');
+      client.connect('ws://localhost:26538', 'test-token');
       client.disconnect();
 
       expect(mockWs.close).toHaveBeenCalled();
@@ -230,7 +230,7 @@ describe('WsClient', () => {
 
     it('should remove all event listeners on disconnect', () => {
       const handler = jest.fn();
-      client.connect('http://localhost:26538', 'test-token');
+      client.connect('ws://localhost:26538', 'test-token');
       mockWs.readyState = 1;
       mockWs.dispatchEvent('open');
 
@@ -253,7 +253,7 @@ describe('WsClient', () => {
         reconnectDelay = delay;
       };
 
-      client.connect('http://localhost:26538', 'test-token');
+      client.connect('ws://localhost:26538', 'test-token');
       // Simulate close
       mockWs.dispatchEvent('close', { code: 1006 });
 
@@ -266,7 +266,7 @@ describe('WsClient', () => {
         delays.push(delay);
       };
 
-      client.connect('http://localhost:26538', 'test-token');
+      client.connect('ws://localhost:26538', 'test-token');
 
       // Simulate 8 consecutive close events
       for (let i = 0; i < 8; i++) {
@@ -277,7 +277,7 @@ describe('WsClient', () => {
     });
 
     it('should reset to 1s on successful connection', () => {
-      client.connect('http://localhost:26538', 'test-token');
+      client.connect('ws://localhost:26538', 'test-token');
 
       // First failure: 1s
       mockWs.dispatchEvent('close', { code: 1006 });
