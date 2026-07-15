@@ -1,7 +1,7 @@
 {
   "Actions": [
     {
-      "UUID": "com.streamdek.play-pause",
+      "UUID": "com.streamdek.controller.play-pause",
       "Icon": "imgs/actions/play-pause",
       "Name": "Play / Pause",
       "Controllers": ["Keypad"],
@@ -18,7 +18,7 @@
       "PropertyInspectorPath": "ui/settings.html"
     },
     {
-      "UUID": "com.streamdek.next-track",
+      "UUID": "com.streamdek.controller.next-track",
       "Icon": "imgs/actions/next-track",
       "Name": "Next Track",
       "Controllers": ["Keypad"],
@@ -31,7 +31,7 @@
       "Tooltip": "Skip to next track"
     },
     {
-      "UUID": "com.streamdek.previous-track",
+      "UUID": "com.streamdek.controller.previous-track",
       "Icon": "imgs/actions/previous-track",
       "Name": "Previous Track",
       "Controllers": ["Keypad"],
@@ -44,7 +44,7 @@
       "Tooltip": "Go to previous track"
     },
     {
-      "UUID": "com.streamdek.like",
+      "UUID": "com.streamdek.controller.like",
       "Icon": "imgs/actions/like",
       "Name": "Like",
       "Controllers": ["Keypad"],
@@ -60,7 +60,7 @@
       "Tooltip": "Like current track"
     },
     {
-      "UUID": "com.streamdek.dislike",
+      "UUID": "com.streamdek.controller.dislike",
       "Icon": "imgs/actions/dislike",
       "Name": "Dislike",
       "Controllers": ["Keypad"],
@@ -76,7 +76,7 @@
       "Tooltip": "Dislike current track"
     },
     {
-      "UUID": "com.streamdek.shuffle",
+      "UUID": "com.streamdek.controller.shuffle",
       "Icon": "imgs/actions/shuffle",
       "Name": "Shuffle",
       "Controllers": ["Keypad"],
@@ -92,7 +92,7 @@
       "Tooltip": "Toggle shuffle"
     },
     {
-      "UUID": "com.streamdek.repeat",
+      "UUID": "com.streamdek.controller.repeat",
       "Icon": "imgs/actions/repeat",
       "Name": "Repeat",
       "Controllers": ["Keypad"],
@@ -111,7 +111,7 @@
       "Tooltip": "Cycle repeat mode"
     },
     {
-      "UUID": "com.streamdek.volume",
+      "UUID": "com.streamdek.controller.volume",
       "Icon": "imgs/actions/volume",
       "Name": "Volume",
       "Controllers": ["Encoder"],
@@ -136,7 +136,7 @@
       "PropertyInspectorPath": "ui/settings.html"
     },
     {
-      "UUID": "com.streamdek.seek",
+      "UUID": "com.streamdek.controller.seek",
       "Icon": "imgs/actions/seek",
       "Name": "Seek",
       "Controllers": ["Encoder"],
@@ -161,7 +161,7 @@
       "PropertyInspectorPath": "ui/settings.html"
     },
     {
-      "UUID": "com.streamdek.go-forward",
+      "UUID": "com.streamdek.controller.go-forward",
       "Icon": "imgs/actions/go-forward",
       "Name": "Go Forward",
       "Controllers": ["Keypad"],
@@ -175,7 +175,7 @@
       "PropertyInspectorPath": "ui/settings.html"
     },
     {
-      "UUID": "com.streamdek.go-back",
+      "UUID": "com.streamdek.controller.go-back",
       "Icon": "imgs/actions/go-back",
       "Name": "Go Back",
       "Controllers": ["Keypad"],
@@ -189,7 +189,7 @@
       "PropertyInspectorPath": "ui/settings.html"
     },
     {
-      "UUID": "com.streamdek.artwork",
+      "UUID": "com.streamdek.controller.artwork",
       "Icon": "imgs/actions/artwork",
       "Name": "Artwork",
       "Controllers": ["Keypad"],
@@ -203,7 +203,7 @@
       "PropertyInspectorPath": "ui/settings.html"
     },
     {
-      "UUID": "com.streamdek.set-volume",
+      "UUID": "com.streamdek.controller.set-volume",
       "Icon": "imgs/actions/set-volume",
       "Name": "Set Volume",
       "Controllers": ["Keypad"],
@@ -217,7 +217,7 @@
       "PropertyInspectorPath": "ui/settings.html"
     },
     {
-      "UUID": "com.streamdek.add-track",
+      "UUID": "com.streamdek.controller.add-track",
       "Icon": "imgs/actions/add-track",
       "Name": "Add Track",
       "Controllers": ["Keypad"],
@@ -231,7 +231,7 @@
       "PropertyInspectorPath": "ui/settings.html"
     },
     {
-      "UUID": "com.streamdek.add-playlist",
+      "UUID": "com.streamdek.controller.add-playlist",
       "Icon": "imgs/actions/add-playlist",
       "Name": "Add Playlist",
       "Controllers": ["Keypad"],
@@ -246,8 +246,8 @@
     }
   ],
   "SDKVersion": 3,
-  "Name": "Streamdek",
-  "Description": "Control pear-desktop (YouTube Music) from your Stream Deck",
+  "Name": "Streamdek Controller",
+  "Description": "Control pear-desktop (YouTube Music) from your Stream Deck — controller plugin",
   "Author": "Blazz",
   "URL": "https://github.com/blazz/streamdek",
   "Version": "1.0.0",

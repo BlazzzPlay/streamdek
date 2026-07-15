@@ -15,14 +15,6 @@ function mockFetch(
   );
 }
 
-/** Extract Authorization header from a fetch call */
-function getAuthHeader(mock: jest.Mock): string | null {
-  const call = mock.mock.calls[0];
-  const init = call?.[1] as RequestInit | undefined;
-  const headers = init?.headers as Record<string, string> | undefined;
-  return headers?.['Authorization'] ?? null;
-}
-
 describe('ApiClient', () => {
   let client: ApiClient;
   let fetchMock: jest.Mock<typeof fetch>;
@@ -31,66 +23,25 @@ describe('ApiClient', () => {
     fetchMock = mockFetch(200);
     client = new ApiClient(fetchMock as unknown as typeof fetch);
     client.setBaseUrl('localhost', 26538);
-    client.setToken('test-token-123');
   });
 
-  describe('Bearer token authentication', () => {
-    it('should include Authorization header with Bearer token', async () => {
+  describe('no authorization header', () => {
+    it('should NOT include Authorization header on GET requests', async () => {
       await client.get('/test');
 
-      expect(getAuthHeader(fetchMock)).toBe('Bearer test-token-123');
+      const call = fetchMock.mock.calls[0];
+      const init = call?.[1] as RequestInit | undefined;
+      const headers = init?.headers as Record<string, string> | undefined;
+      expect(headers?.['Authorization']).toBeUndefined();
     });
 
-    it('should include Authorization header on POST requests', async () => {
+    it('should NOT include Authorization header on POST requests', async () => {
       await client.post('/test', { data: 'value' });
 
-      expect(getAuthHeader(fetchMock)).toBe('Bearer test-token-123');
-    });
-  });
-
-  describe('authenticate (auth flow)', () => {
-    it('should POST to /auth/{clientId} and return accessToken', async () => {
-      fetchMock = mockFetch(200, { accessToken: 'new-jwt-token' });
-      client = new ApiClient(fetchMock as unknown as typeof fetch);
-      client.setBaseUrl('localhost', 26538);
-
-      const token = await client.authenticate('streamdek-abc123');
-
-      const url = fetchMock.mock.calls[0]?.[0] as string;
-      expect(url).toBe('http://localhost:26538/auth/streamdek-abc123');
-      const init = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
-      expect(init?.method).toBe('POST');
-
-      // authenticate() does NOT send the access token (no auth needed on /auth endpoint)
-      const authHeader = getAuthHeader(fetchMock);
-      expect(authHeader).toBeNull();
-
-      expect(token).toBe('new-jwt-token');
-    });
-
-    it('should throw on non-200 auth response', async () => {
-      fetchMock = mockFetch(403, { error: 'Denied' });
-      client = new ApiClient(fetchMock as unknown as typeof fetch);
-      client.setBaseUrl('localhost', 26538);
-
-      await expect(client.authenticate('streamdek-abc123')).rejects.toThrow();
-    });
-
-    it('should handle auth with different client IDs', async () => {
-      fetchMock = mockFetch(200, { accessToken: 'token-for-custom' });
-      client = new ApiClient(fetchMock as unknown as typeof fetch);
-      client.setBaseUrl('localhost', 26538);
-
-      const token = await client.authenticate('custom-client-xyz');
-      expect(token).toBe('token-for-custom');
-    });
-  });
-
-  describe('setToken', () => {
-    it('should use the token for subsequent requests', async () => {
-      client.setToken('updated-token');
-      await client.get('/test');
-      expect(getAuthHeader(fetchMock)).toBe('Bearer updated-token');
+      const call = fetchMock.mock.calls[0];
+      const init = call?.[1] as RequestInit | undefined;
+      const headers = init?.headers as Record<string, string> | undefined;
+      expect(headers?.['Authorization']).toBeUndefined();
     });
   });
 
@@ -127,7 +78,6 @@ describe('ApiClient', () => {
 
       const timeoutClient = new ApiClient(trackedFetch as unknown as typeof fetch);
       timeoutClient.setBaseUrl('localhost', 26538);
-      timeoutClient.setToken('token');
 
       await timeoutClient.get('/test');
 
@@ -139,22 +89,10 @@ describe('ApiClient', () => {
   });
 
   describe('HTTP errors', () => {
-    it('should reject with ApiError on 401 Unauthorized', async () => {
-      fetchMock = mockFetch(401, { error: 'Invalid token' });
-      client = new ApiClient(fetchMock as unknown as typeof fetch);
-      client.setBaseUrl('localhost', 26538);
-      client.setToken('bad-token');
-
-      await expect(client.get('/test')).rejects.toThrow(
-        'Unauthorized: check your access token',
-      );
-    });
-
-    it('should reject with ApiError on other 4xx errors', async () => {
+    it('should reject with ApiError on 4xx errors', async () => {
       fetchMock = mockFetch(404, { error: 'Not found' });
       client = new ApiClient(fetchMock as unknown as typeof fetch);
       client.setBaseUrl('localhost', 26538);
-      client.setToken('token');
 
       await expect(client.get('/test')).rejects.toThrow();
     });
@@ -165,7 +103,6 @@ describe('ApiClient', () => {
       );
       client = new ApiClient(errorFetch as unknown as typeof fetch);
       client.setBaseUrl('localhost', 26538);
-      client.setToken('token');
 
       await expect(client.get('/test')).rejects.toThrow('Network error');
     });
@@ -189,30 +126,9 @@ describe('ApiClient', () => {
 
       client = new ApiClient(failThenSucceed as unknown as typeof fetch);
       client.setBaseUrl('localhost', 26538);
-      client.setToken('token');
 
       await client.get('/test');
       expect(failThenSucceed).toHaveBeenCalledTimes(2);
-    });
-
-    it('should NOT retry on 401 errors', async () => {
-      let attempts = 0;
-      const always401 = jest.fn<typeof fetch>().mockImplementation(() => {
-        attempts++;
-        return Promise.resolve(
-          new Response(JSON.stringify({ error: 'Unauthorized' }), {
-            status: 401,
-            headers: { 'Content-Type': 'application/json' },
-          }),
-        );
-      });
-
-      client = new ApiClient(always401 as unknown as typeof fetch);
-      client.setBaseUrl('localhost', 26538);
-      client.setToken('token');
-
-      await expect(client.get('/test')).rejects.toThrow();
-      expect(always401).toHaveBeenCalledTimes(1); // no retry on 401
     });
 
     it('should fail after one retry if both attempts fail', async () => {
@@ -222,7 +138,6 @@ describe('ApiClient', () => {
 
       client = new ApiClient(alwaysFail as unknown as typeof fetch);
       client.setBaseUrl('localhost', 26538);
-      client.setToken('token');
 
       await expect(client.get('/test')).rejects.toThrow();
       expect(alwaysFail).toHaveBeenCalledTimes(2);

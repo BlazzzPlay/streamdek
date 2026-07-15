@@ -32,7 +32,7 @@ abstract class BaseKeypadAction extends SingletonAction<PluginSettings> {
   }
 }
 
-@action({ UUID: 'com.streamdek.play-pause' })
+@action({ UUID: 'com.streamdek.controller.play-pause' })
 export class PlayPauseAction extends BaseKeypadAction {
   async onKeyDown(ev: KeyDownEvent<PluginSettings>): Promise<void> {
     await this.executeIfReady(ev, async () => {
@@ -43,7 +43,7 @@ export class PlayPauseAction extends BaseKeypadAction {
   }
 }
 
-@action({ UUID: 'com.streamdek.next-track' })
+@action({ UUID: 'com.streamdek.controller.next-track' })
 export class NextTrackAction extends BaseKeypadAction {
   async onKeyDown(ev: KeyDownEvent<PluginSettings>): Promise<void> {
     await this.executeIfReady(ev, async () => {
@@ -52,7 +52,7 @@ export class NextTrackAction extends BaseKeypadAction {
   }
 }
 
-@action({ UUID: 'com.streamdek.previous-track' })
+@action({ UUID: 'com.streamdek.controller.previous-track' })
 export class PreviousTrackAction extends BaseKeypadAction {
   async onKeyDown(ev: KeyDownEvent<PluginSettings>): Promise<void> {
     await this.executeIfReady(ev, async () => {
@@ -61,7 +61,7 @@ export class PreviousTrackAction extends BaseKeypadAction {
   }
 }
 
-@action({ UUID: 'com.streamdek.like' })
+@action({ UUID: 'com.streamdek.controller.like' })
 export class LikeAction extends BaseKeypadAction {
   async onKeyDown(ev: KeyDownEvent<PluginSettings>): Promise<void> {
     await this.executeIfReady(ev, async () => {
@@ -72,7 +72,7 @@ export class LikeAction extends BaseKeypadAction {
   }
 }
 
-@action({ UUID: 'com.streamdek.dislike' })
+@action({ UUID: 'com.streamdek.controller.dislike' })
 export class DislikeAction extends BaseKeypadAction {
   async onKeyDown(ev: KeyDownEvent<PluginSettings>): Promise<void> {
     await this.executeIfReady(ev, async () => {
@@ -83,7 +83,7 @@ export class DislikeAction extends BaseKeypadAction {
   }
 }
 
-@action({ UUID: 'com.streamdek.shuffle' })
+@action({ UUID: 'com.streamdek.controller.shuffle' })
 export class ShuffleAction extends BaseKeypadAction {
   async onKeyDown(ev: KeyDownEvent<PluginSettings>): Promise<void> {
     await this.executeIfReady(ev, async () => {
@@ -94,7 +94,7 @@ export class ShuffleAction extends BaseKeypadAction {
   }
 }
 
-@action({ UUID: 'com.streamdek.repeat' })
+@action({ UUID: 'com.streamdek.controller.repeat' })
 export class RepeatAction extends BaseKeypadAction {
   async onKeyDown(ev: KeyDownEvent<PluginSettings>): Promise<void> {
     await this.executeIfReady(ev, async () => {
@@ -108,7 +108,7 @@ export class RepeatAction extends BaseKeypadAction {
   }
 }
 
-@action({ UUID: 'com.streamdek.go-forward' })
+@action({ UUID: 'com.streamdek.controller.go-forward' })
 export class GoForwardAction extends BaseKeypadAction {
   async onKeyDown(ev: KeyDownEvent<PluginSettings>): Promise<void> {
     await this.executeIfReady(ev, async () => {
@@ -119,7 +119,7 @@ export class GoForwardAction extends BaseKeypadAction {
   }
 }
 
-@action({ UUID: 'com.streamdek.go-back' })
+@action({ UUID: 'com.streamdek.controller.go-back' })
 export class GoBackAction extends BaseKeypadAction {
   async onKeyDown(ev: KeyDownEvent<PluginSettings>): Promise<void> {
     await this.executeIfReady(ev, async () => {
@@ -130,7 +130,7 @@ export class GoBackAction extends BaseKeypadAction {
   }
 }
 
-@action({ UUID: 'com.streamdek.set-volume' })
+@action({ UUID: 'com.streamdek.controller.set-volume' })
 export class SetVolumeAction extends BaseKeypadAction {
   async onKeyDown(ev: KeyDownEvent<PluginSettings>): Promise<void> {
     await this.executeIfReady(ev, async () => {
@@ -142,7 +142,7 @@ export class SetVolumeAction extends BaseKeypadAction {
   }
 }
 
-@action({ UUID: 'com.streamdek.add-track' })
+@action({ UUID: 'com.streamdek.controller.add-track' })
 export class AddTrackAction extends BaseKeypadAction {
   async onKeyDown(ev: KeyDownEvent<PluginSettings>): Promise<void> {
     await this.executeIfReady(ev, async () => {
@@ -159,7 +159,7 @@ export class AddTrackAction extends BaseKeypadAction {
   }
 }
 
-@action({ UUID: 'com.streamdek.add-playlist' })
+@action({ UUID: 'com.streamdek.controller.add-playlist' })
 export class AddPlaylistAction extends BaseKeypadAction {
   async onKeyDown(ev: KeyDownEvent<PluginSettings>): Promise<void> {
     await this.executeIfReady(ev, async () => {

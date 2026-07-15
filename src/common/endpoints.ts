@@ -1,9 +1,6 @@
 /** Base path for pear-desktop REST API */
 export const API_BASE = '/api/v1';
 
-/** Authentication endpoint */
-export const AUTH_PATH = '/auth';
-
 /** REST endpoint paths — match the real pear-desktop API Server */
 export const ENDPOINTS = {
   TOGGLE_PLAY: `${API_BASE}/toggle-play`,
@@ -32,8 +29,5 @@ export const PROBE_TIMEOUT_MS = 3000;
 /** REST request timeout in milliseconds */
 export const REQUEST_TIMEOUT_MS = 5000;
 
-/** Authentication timeout in milliseconds */
-export const AUTH_TIMEOUT_MS = 30000;
-
-/** WebSocket path — token is passed as query param */
+/** WebSocket path */
 export const WS_PATH = '/api/v1/ws';

@@ -5,8 +5,6 @@ import type { ConnectionState } from '../../common/types';
 function createMockApiClient() {
   return {
     setBaseUrl: jest.fn(),
-    setToken: jest.fn(),
-    authenticate: jest.fn().mockResolvedValue('mock-access-token'),
     get: jest.fn().mockResolvedValue(new Response(JSON.stringify({ ok: true }), { status: 200 })),
     post: jest.fn(),
     togglePlay: jest.fn(),
@@ -20,6 +18,10 @@ function createMockApiClient() {
     toggleMute: jest.fn(),
     seekTo: jest.fn(),
     getSong: jest.fn(),
+    goForward: jest.fn(),
+    goBack: jest.fn(),
+    addTrack: jest.fn(),
+    addPlaylist: jest.fn(),
   };
 }
 
@@ -60,7 +62,7 @@ describe('ConnectionManager', () => {
     });
   });
 
-  describe('connect (no JWT — auth flow deferred)', () => {
+  describe('connect (no auth — direct flow)', () => {
     it('should transition from disconnected to connecting when connect is called', () => {
       cm.connect('localhost', 26538);
       expect(cm.getState()).toBe('connecting');
@@ -72,18 +74,20 @@ describe('ConnectionManager', () => {
       expect(mockApi.setBaseUrl).toHaveBeenCalledWith('localhost', 26538);
     });
 
-    it('should NOT set token on ApiClient during connect (auth happens later)', () => {
-      cm.connect('localhost', 26538);
-      expect(mockApi.setToken).not.toHaveBeenCalled();
-    });
-
-    it('should probe the endpoint using GET / (or a simple reachability check)', async () => {
+    it('should probe the endpoint and transition to authenticated on success', async () => {
       cm.connect('localhost', 26538);
 
       await jest.runAllTimersAsync();
 
-      // After probe success, should transition to 'connected'
-      expect(cm.getState()).toBe('connected');
+      // After probe success, should transition to 'authenticated'
+      expect(cm.getState()).toBe('authenticated');
+    });
+
+    it('should start WebSocket connection after probe succeeds', async () => {
+      cm.connect('localhost', 26538);
+      await jest.runAllTimersAsync();
+
+      expect(mockWs.connect).toHaveBeenCalledWith('ws://localhost:26538');
     });
   });
 
@@ -104,57 +108,6 @@ describe('ConnectionManager', () => {
       await jest.runAllTimersAsync();
 
       // After probe timeout, should emit disconnected
-      expect(cm.getState()).toBe('disconnected');
-    });
-  });
-
-  describe('authenticate flow', () => {
-    it('should call apiClient.authenticate when authenticate() is invoked with useAuth=true', async () => {
-      cm.connect('localhost', 26538, true);
-      await jest.runAllTimersAsync();
-      expect(cm.getState()).toBe('connected');
-
-      await cm.authenticate('streamdek-abc123');
-
-      expect(mockApi.authenticate).toHaveBeenCalledWith('streamdek-abc123');
-    });
-
-    it('should set token and transition to authenticated on success', async () => {
-      mockApi.authenticate.mockImplementation(() => Promise.resolve('returned-jwt-token'));
-
-      cm.connect('localhost', 26538, true);
-      await jest.runAllTimersAsync();
-
-      await cm.authenticate('streamdek-abc123');
-
-      expect(mockApi.setToken).toHaveBeenCalledWith('returned-jwt-token');
-      expect(cm.getState()).toBe('authenticated');
-    });
-
-    it('should emit waiting_for_auth state during authenticate', async () => {
-      mockApi.authenticate.mockImplementation(() => Promise.resolve('returned-jwt-token'));
-      const states: ConnectionState[] = [];
-      cm.onStateChange((s) => states.push(s));
-
-      cm.connect('localhost', 26538, true);
-      await jest.runAllTimersAsync();
-
-      // Start auth — state changes tracked via listener
-      await cm.authenticate('streamdek-abc123');
-
-      // Should have seen 'waiting_for_auth' at some point
-      // Since mock resolves immediately, we might not catch it, but the method exists
-      expect(mockApi.setToken).toHaveBeenCalledWith('returned-jwt-token');
-    });
-
-    it('should transition to disconnected on auth failure', async () => {
-      mockApi.authenticate.mockImplementation(() => Promise.reject(new Error('Auth failed')));
-
-      cm.connect('localhost', 26538, true);
-      await jest.runAllTimersAsync();
-
-      await cm.authenticate('streamdek-abc123');
-
       expect(cm.getState()).toBe('disconnected');
     });
   });
@@ -191,6 +144,16 @@ describe('ConnectionManager', () => {
 
       expect(listener).not.toHaveBeenCalled();
     });
+
+    it('should notify authenticated on probe success', async () => {
+      const listener = jest.fn();
+      cm.onStateChange(listener);
+
+      cm.connect('localhost', 26538);
+      await jest.runAllTimersAsync();
+
+      expect(listener).toHaveBeenCalledWith('authenticated');
+    });
   });
 
   describe('isAuthenticated', () => {
@@ -203,10 +166,10 @@ describe('ConnectionManager', () => {
       expect(cm.isAuthenticated()).toBe(false);
     });
 
-    it('should return false when connected but not yet authenticated', async () => {
+    it('should return true after probe succeeds', async () => {
       cm.connect('localhost', 26538);
       await jest.runAllTimersAsync();
-      expect(cm.isAuthenticated()).toBe(false);
+      expect(cm.isAuthenticated()).toBe(true);
     });
   });
 
@@ -220,82 +183,24 @@ describe('ConnectionManager', () => {
     });
   });
 
-  describe('WS connection after authentication', () => {
-    it('should connect WebSocket after successful auth with useAuth=true', async () => {
-      mockApi.authenticate.mockImplementation(() => Promise.resolve('returned-jwt-token'));
-      cm.connect('localhost', 26538, true);
+  describe('ws-client integration', () => {
+    it('should set onReconnect handler', async () => {
+      cm.connect('localhost', 26538);
       await jest.runAllTimersAsync();
 
-      await cm.authenticate('streamdek-abc123');
-
-      // After auth → wsClient.connect should be called with baseUrl + token
-      expect(mockWs.connect).toHaveBeenCalledWith(
-        'ws://localhost:26538',
-        'returned-jwt-token',
-      );
-    });
-
-    it('should connect WebSocket with empty token when useAuth=false', async () => {
-      cm.connect('localhost', 26538, false);
-      await jest.runAllTimersAsync();
-
-      await cm.authenticate('streamdek-abc123');
-
-      expect(mockWs.connect).toHaveBeenCalledWith(
-        'ws://localhost:26538',
-        '',
-      );
-    });
-
-    it('should set onReconnect handler that transitions to connecting', async () => {
-      cm.connect('localhost', 26538, true);
-      await jest.runAllTimersAsync();
-      await cm.authenticate('streamdek-abc123');
-
-      // onReconnect should have been set
       expect(mockWs.onReconnect).not.toBeNull();
     });
-  });
 
-  describe('connect with useAuth parameter', () => {
-    it('should pass useAuth=false to connect and skip auth API call', async () => {
-      cm.connect('localhost', 26538, false);
-      await jest.runAllTimersAsync();
-      expect(cm.getState()).toBe('connected');
-
-      // authenticate should skip the API call and go straight to 'authenticated'
-      await cm.authenticate('streamdek-abc123');
-
-      expect(mockApi.authenticate).not.toHaveBeenCalled(); // no API call
-      expect(mockApi.setToken).toHaveBeenCalledWith('');
-      expect(cm.getState()).toBe('authenticated');
-      expect(mockWs.connect).toHaveBeenCalledWith(
-        'ws://localhost:26538',
-        '',
-      );
-    });
-
-    it('should pass useAuth=true to connect and call auth API normally', async () => {
-      mockApi.authenticate.mockImplementation(() => Promise.resolve('returned-jwt-token'));
-      cm.connect('localhost', 26538, true);
-      await jest.runAllTimersAsync();
-      expect(cm.getState()).toBe('connected');
-
-      await cm.authenticate('streamdek-abc123');
-
-      expect(mockApi.authenticate).toHaveBeenCalledWith('streamdek-abc123');
-      expect(mockApi.setToken).toHaveBeenCalledWith('returned-jwt-token');
-      expect(cm.getState()).toBe('authenticated');
-    });
-
-    it('should default to useAuth=false (no auth)', async () => {
-      cm.connect('localhost', 26538); // no third arg = default false
+    it('should transition to connecting on WS reconnect', async () => {
+      cm.connect('localhost', 26538);
       await jest.runAllTimersAsync();
 
-      await cm.authenticate('streamdek-abc123');
+      // Simulate reconnect
+      expect(mockWs.onReconnect).not.toBeNull();
+      (mockWs.onReconnect as any)(1000);
 
-      expect(mockApi.authenticate).not.toHaveBeenCalled();
-      expect(cm.getState()).toBe('authenticated');
+      // After reconnect trigger, should be 'connecting'
+      // (the handler calls transition('connecting'))
     });
   });
 

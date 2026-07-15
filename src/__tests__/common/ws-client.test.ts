@@ -42,43 +42,33 @@ describe('WsClient', () => {
     client.disconnect();
   });
 
-  describe('connection URL includes token as query param', () => {
-    it('should construct URL with token query param', () => {
+  describe('connection URL (no token)', () => {
+    it('should construct URL without token query param', () => {
       const MockWsCtor = jest.fn().mockImplementation(() => mockWs) as unknown as typeof WebSocket;
       (MockWsCtor as Record<string, unknown>).OPEN = 1;
       const wsClient = new WsClient(MockWsCtor);
 
-      wsClient.connect('ws://localhost:26538', 'api-token-456');
+      wsClient.connect('ws://localhost:26538');
 
-      // The constructor should have been called with the full URL including token
-      expect(MockWsCtor).toHaveBeenCalledWith('ws://localhost:26538/api/v1/ws?token=api-token-456');
+      // The constructor should have been called with the URL without token param
+      expect(MockWsCtor).toHaveBeenCalledWith('ws://localhost:26538/api/v1/ws');
     });
 
-    it('should not send auth frame after open (token is in URL)', () => {
-      client.connect('ws://localhost:26538', 'test-token');
+    it('should not send auth frame after open (no auth mode)', () => {
+      client.connect('ws://localhost:26538');
 
       // Simulate WebSocket open
       mockWs.readyState = 1; // OPEN
       mockWs.dispatchEvent('open');
 
-      // No auth message should be sent — token is in the URL query param
+      // No auth message should be sent
       expect(mockWs.send).not.toHaveBeenCalled();
-    });
-
-    it('should NOT need readyState OPEN to attempt connect', () => {
-      const MockWsCtor = jest.fn().mockImplementation(() => mockWs) as unknown as typeof WebSocket;
-      (MockWsCtor as Record<string, unknown>).OPEN = 1;
-      const wsClient = new WsClient(MockWsCtor);
-
-      wsClient.connect('ws://localhost:26538', 'token');
-      // It should create the WebSocket regardless of readyState
-      expect(MockWsCtor).toHaveBeenCalled();
     });
   });
 
   describe('event pub/sub with real event types', () => {
     const connectClient = () => {
-      client.connect('ws://localhost:26538', 'test-token');
+      client.connect('ws://localhost:26538');
       mockWs.readyState = 1;
       mockWs.dispatchEvent('open');
     };
@@ -222,7 +212,7 @@ describe('WsClient', () => {
 
   describe('disconnect', () => {
     it('should close WebSocket on disconnect', () => {
-      client.connect('ws://localhost:26538', 'test-token');
+      client.connect('ws://localhost:26538');
       client.disconnect();
 
       expect(mockWs.close).toHaveBeenCalled();
@@ -230,7 +220,7 @@ describe('WsClient', () => {
 
     it('should remove all event listeners on disconnect', () => {
       const handler = jest.fn();
-      client.connect('ws://localhost:26538', 'test-token');
+      client.connect('ws://localhost:26538');
       mockWs.readyState = 1;
       mockWs.dispatchEvent('open');
 
@@ -253,7 +243,7 @@ describe('WsClient', () => {
         reconnectDelay = delay;
       };
 
-      client.connect('ws://localhost:26538', 'test-token');
+      client.connect('ws://localhost:26538');
       // Simulate close
       mockWs.dispatchEvent('close', { code: 1006 });
 
@@ -266,7 +256,7 @@ describe('WsClient', () => {
         delays.push(delay);
       };
 
-      client.connect('ws://localhost:26538', 'test-token');
+      client.connect('ws://localhost:26538');
 
       // Simulate 8 consecutive close events
       for (let i = 0; i < 8; i++) {
@@ -277,7 +267,7 @@ describe('WsClient', () => {
     });
 
     it('should reset to 1s on successful connection', () => {
-      client.connect('ws://localhost:26538', 'test-token');
+      client.connect('ws://localhost:26538');
 
       // First failure: 1s
       mockWs.dispatchEvent('close', { code: 1006 });

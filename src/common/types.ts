@@ -28,8 +28,6 @@ export interface SongInfo {
 export type ConnectionState =
   | 'disconnected'
   | 'connecting'
-  | 'connected'
-  | 'waiting_for_auth'
   | 'authenticated';
 
 /** JSON-compatible value type (recursive) */
@@ -39,9 +37,6 @@ type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string
 export interface PluginSettings {
   host?: string;
   port?: number;
-  clientId?: string;
-  accessToken?: string;
-  useAuth?: boolean;
   [key: string]: JsonValue | undefined;
 }
 

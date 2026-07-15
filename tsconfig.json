@@ -7,7 +7,7 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
-    "outDir": "com.streamdek.sdPlugin/bin",
+    "outDir": "com.streamdek.controller.sdPlugin/bin",
     "rootDir": "src",
     "declaration": false,
     "sourceMap": true,
@@ -16,5 +16,5 @@
     "types": ["node", "jest"]
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["node_modules", "com.streamdek.sdPlugin", "src/__tests__", "src/__mocks__"]
+  "exclude": ["node_modules",     "com.streamdek.controller.sdPlugin", "src/__tests__", "src/__mocks__"]
 }

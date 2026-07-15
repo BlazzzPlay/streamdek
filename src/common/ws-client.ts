@@ -6,7 +6,7 @@ const BACKOFF_SEQUENCE = [1000, 2000, 4000, 8000, 16000, 32000, 60000];
 
 /**
  * WebSocket client for pear-desktop API Server communication.
- * Token is passed as a query parameter in the WS URL: /api/v1/ws?token=<jwt>
+ * No auth mode — connects directly without token query param.
  * Typed event pub/sub for player state events.
  * Exponential backoff reconnect capped at 60s, reset on success.
  */
@@ -27,11 +27,11 @@ export class WsClient {
 
   /**
    * Connect to the WebSocket server.
-   * Token is appended as a query parameter: ws://host:port/api/v1/ws?token=<token>
+   * No auth token — direct connection: ws://host:port/api/v1/ws
    */
-  connect(baseUrl: string, token: string): void {
+  connect(baseUrl: string): void {
     this.disposed = false;
-    const wsUrl = `${baseUrl}${WS_PATH}?token=${encodeURIComponent(token)}`;
+    const wsUrl = `${baseUrl}${WS_PATH}`;
     this.createSocket(wsUrl);
   }
 

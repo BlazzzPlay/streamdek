@@ -1,8 +1,8 @@
-# Streamdek
+# Streamdek Controller
 
 **Controlá pear-desktop (YouTube Music) desde tu Stream Deck.**
 
-Streamdek es un plugin para Elgato Stream Deck que ofrece control completo de medios para pear-desktop — el reproductor de escritorio de YouTube Music. Soporta acciones de teclas (Keypad) y controles de perilla (Encoder) en Stream Deck Plus.
+Streamdek Controller es un plugin para Elgato Stream Deck que ofrece control completo de medios para pear-desktop — el reproductor de escritorio de YouTube Music. Soporta acciones de teclas (Keypad) y controles de perilla (Encoder) en Stream Deck Plus.
 
 ---
 
@@ -33,11 +33,11 @@ Streamdek es un plugin para Elgato Stream Deck que ofrece control completo de me
 
 ### Arquitectura
 - **SDK v3** con soporte `SupportedInMultiActions` y layout `$B1` para encoders
-- **Auth** (`POST /auth/{clientId}`) — autorización nativa: pear-desktop muestra diálogo, usuario hace clic en Allow (opcional: modo sin auth disponible)
-- **REST** (`/api/v1/*`) con token Bearer para comandos (sin token cuando useAuth=false)
-- **WebSocket** (`/api/v1/ws?token=<jwt>`) con token como query param para estado en tiempo real
+- **Sin autorización** — conexión directa, no auth: funciona con pear-desktop en modo "No authorization"
+- **REST** (`/api/v1/*`) sin token para comandos
+- **WebSocket** (`/api/v1/ws`) sin token para estado en tiempo real
 - **StateStore** cachea el estado del reproductor desde eventos WS (volumen solo por WS debido al bug #4458)
-- **ConnectionManager** maneja la máquina de estados: probe → connected → waiting_for_auth → authenticated
+- **ConnectionManager** maneja la máquina de estados: probe → authenticated (directo, sin auth)
 - **Reconexión** con backoff exponencial (1s → 60s máximo)
 - **Aislamiento de errores por acción**: cada acción muestra un ícono de advertencia al desconectarse
 - **Plantillas de texto** con `{title}`, `{artist}`, `{album}` para personalizar el overlay
@@ -50,7 +50,7 @@ Streamdek es un plugin para Elgato Stream Deck que ofrece control completo de me
 ### Requisitos
 - Node.js ≥ 20
 - Stream Deck software ≥ 6.9
-- pear-desktop corriendo con el plugin API Server activado
+- pear-desktop corriendo con el plugin API Server activado en modo "No authorization"
 
 ### Compilar desde el código fuente
 
@@ -61,7 +61,7 @@ pnpm install
 # Compilar el plugin
 pnpm build
 
-# Resultado: com.streamdek.sdPlugin/
+# Resultado: com.streamdek.controller.sdPlugin/
 ```
 
 ### Instalación
@@ -69,16 +69,16 @@ pnpm build
 ```bash
 # Copiar el plugin a la carpeta de plugins de Stream Deck
 # macOS:
-cp -R com.streamdek.sdPlugin ~/Library/Application\ Support/com.elgato.StreamDeck/Plugins/
+cp -R com.streamdek.controller.sdPlugin ~/Library/Application\ Support/com.elgato.StreamDeck/Plugins/
 
 # Linux:
-cp -R com.streamdek.sdPlugin ~/.local/share/com.elgato.StreamDeck/Plugins/
+cp -R com.streamdek.controller.sdPlugin ~/.local/share/com.elgato.StreamDeck/Plugins/
 
 # O symlink para desarrollo:
-ln -s "$(pwd)/com.streamdek.sdPlugin" ~/.local/share/com.elgato.StreamDeck/Plugins/
+ln -s "$(pwd)/com.streamdek.controller.sdPlugin" ~/.local/share/com.elgato.StreamDeck/Plugins/
 
 # Reiniciar Stream Deck
-streamdeck restart com.streamdek.sdplugin
+streamdeck restart com.streamdek.controller.sdplugin
 ```
 
 ---
@@ -90,27 +90,14 @@ streamdeck restart com.streamdek.sdplugin
 1. Abrí **pear-desktop**
 2. Andá a **Configuración → API Server**
 3. Activá **Enable API Server**
-4. Puerto `26538` (por defecto)
+4. Seteá Authorization en **"No authorization"**
+5. Puerto `26538` (por defecto)
 
-### 2. Configurar Streamdek
+### 2. Conectar Streamdek Controller
 
-**Opción A — Sin autorización (recomendada)**
-
-1. En pear-desktop, seteá Authorization en **"No authorization"**
-2. En Streamdek, dejá **"Use authentication" destildado**
-3. Arrastrá cualquier acción de Streamdek a tu layout
-4. Hacé clic en **Probe Connection**
-5. Streamdek se conecta instantáneamente — listo
-
-**Opción B — Con autorización (AUTH_AT_FIRST)**
-
-1. En pear-desktop, seteá Authorization en **"AUTH_AT_FIRST"**
-2. En Streamdek, **tildá "Use authentication"**
-3. Hacé clic en **Connect & Authorize**
-4. pear-desktop te muestra un diálogo — hacé clic en **Allow**
-5. Streamdek se conecta automáticamente
-
-> **Sin tokens manuales**: Streamdek usa el flow de autorización nativo de pear-desktop. No necesitás copiar ni pegar ningún JWT.
+1. Arrastrá cualquier acción de Streamdek Controller a tu layout
+2. Hacé clic en **Probe & Connect**
+3. Streamdek se conecta instantáneamente — listo
 
 ---
 
@@ -136,20 +123,20 @@ pnpm dev
 src/
 ├── plugin.ts                    # Punto de entrada
 ├── common/
-│   ├── api-client.ts            # Cliente REST con JWT + nuevos endpoints
+│   ├── api-client.ts            # Cliente REST (sin auth)
 │   ├── ws-client.ts             # Cliente WebSocket con backoff
-│   ├── connection-manager.ts    # Máquina de estados: probe → conectar → autenticar
+│   ├── connection-manager.ts    # Máquina de estados: probe → authenticated
 │   ├── state-store.ts           # Cache de estado del reproductor (volumen solo WS)
 │   ├── logger.ts                # Wrapper de streamDeck.logger
 │   ├── types.ts                 # Interfaces TypeScript + SongInfo
 │   ├── template.ts              # Sistema de plantillas de texto
 │   └── endpoints.ts             # Constantes de rutas de la API
 ├── actions/
-│   ├── keypad-actions.ts        # 12 acciones de tecla (+ GoForward, GoBack, SetVolume, AddTrack, AddPlaylist)
+│   ├── keypad-actions.ts        # 11 acciones de tecla
 │   ├── encoder-actions.ts       # 2 acciones de perilla ($B1 layout)
 │   └── artwork-action.ts        # Acción de carátula con overlay de texto
 └── __tests__/                   # Suites de tests
-com.streamdek.sdPlugin/
+com.streamdek.controller.sdPlugin/
 ├── manifest.json                # Manifiesto Stream Deck (SDK v3)
 ├── bin/plugin.js                # Plugin compilado
 ├── ui/settings.html             # Property Inspector
@@ -175,7 +162,7 @@ MIT
 
 **Control pear-desktop (YouTube Music) from your Stream Deck.**
 
-Streamdek is an Elgato Stream Deck plugin that provides full media control for pear-desktop — the YouTube Music desktop player. Supports Keypad actions and Encoder (dial) controls on Stream Deck Plus.
+Streamdek Controller is an Elgato Stream Deck plugin that provides full media control for pear-desktop — the YouTube Music desktop player. Supports Keypad actions and Encoder (dial) controls on Stream Deck Plus.
 
 ### Features
 
@@ -184,9 +171,9 @@ Streamdek is an Elgato Stream Deck plugin that provides full media control for p
 | **Keypad (13)** | Play/Pause, Next Track, Previous Track, Like, Dislike, Shuffle, Repeat, Go Forward, Go Back, Artwork, Set Volume, Add Track, Add Playlist |
 | **Encoder (2)** | Volume (rotate ±2, press to mute, $B1 layout), Seek (rotate ±5s, press to play/pause, $B1 layout) |
 
-- **Native auth flow** — pear-desktop dialog, no manual JWT (optional: no-auth mode for instant connection)
-- **REST API** with Bearer token for commands (no token header in no-auth mode)
-- **WebSocket** with token as URL query param for real-time player state
+- **No authorization** — direct connection, works with pear-desktop in "No authorization" mode
+- **REST API** without token for commands
+- **WebSocket** without token for real-time player state
 - **Auto-probe** of pear-desktop on configurable host:port
 - **Per-action disconnect warnings** on both Keypad and Encoder displays
 - **Exponential backoff** reconnection (1s → 60s cap)
@@ -201,31 +188,22 @@ Streamdek is an Elgato Stream Deck plugin that provides full media control for p
 ```bash
 pnpm install
 pnpm build
-# Copy com.streamdek.sdPlugin/ to your Stream Deck plugins folder
+# Copy com.streamdek.controller.sdPlugin/ to your Stream Deck plugins folder
 ```
 
 ### Activation
 
-**Option A — No Authorization (recommended)**
-
-1. In pear-desktop, set Authorization to **"No authorization"**
-2. In Streamdek, leave **"Use authentication" unchecked**
-3. Add any Streamdek action to your Stream Deck layout
-4. Click **Probe Connection** — Streamdek connects instantly
-
-**Option B — With Authorization (AUTH_AT_FIRST)**
-
-1. In pear-desktop, set Authorization to **"AUTH_AT_FIRST"**
-2. In Streamdek, **check "Use authentication"**
-3. Click **Connect & Authorize** — pear-desktop will show a dialog
-4. Click **Allow** in pear-desktop — Streamdek connects automatically
-
-> **No manual tokens**: Streamdek uses pear-desktop's native authorization flow. No JWT copying needed.
+1. In pear-desktop, go to **Settings → API Server**
+2. Check **Enable API Server**
+3. Set Authorization to **"No authorization"**
+4. Set port to `26538` (default)
+5. Add any Streamdek Controller action to your Stream Deck layout
+6. Click **Probe & Connect** — Streamdek connects instantly
 
 ### Dev
 
 ```bash
-pnpm test          # 170 tests
+pnpm test          # 156 tests
 pnpm test:coverage
 pnpm typecheck     # tsc --noEmit
 pnpm dev           # watch mode

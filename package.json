@@ -1,8 +1,8 @@
 {
-  "name": "com.streamdek.sdplugin",
+  "name": "com.streamdek.controller.sdplugin",
   "version": "1.0.0",
   "description": "Stream Deck plugin to control pear-desktop (YouTube Music player)",
-  "main": "com.streamdek.sdPlugin/bin/plugin.js",
+  "main": "com.streamdek.controller.sdPlugin/bin/plugin.js",
   "type": "module",
   "engines": {
     "node": ">=20.0.0"
@@ -15,7 +15,7 @@
     "test:common": "NODE_OPTIONS='--experimental-vm-modules' jest --testPathPatterns='common/'",
     "test:actions": "NODE_OPTIONS='--experimental-vm-modules' jest --testPathPatterns='actions/'",
     "typecheck": "tsc --noEmit",
-    "reload": "streamdeck restart com.streamdek.sdplugin"
+    "reload": "streamdeck restart com.streamdek.controller.sdplugin"
   },
   "keywords": [
     "stream-deck",

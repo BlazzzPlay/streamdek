@@ -8,7 +8,7 @@ const DEFAULT_PORT = 26538;
 const PROBE_TIMEOUT_MS = 3000;
 /** REST request timeout in milliseconds */
 const REQUEST_TIMEOUT_MS = 5000;
-/** WebSocket path — token is passed as query param */
+/** WebSocket path */
 const WS_PATH = '/api/v1/ws';
 
 /** Error thrown when pear-desktop API returns a non-2xx status */
@@ -22,13 +22,11 @@ class ApiError extends Error {
 }
 /**
  * REST client for pear-desktop API Server.
- * Implements the real auth flow: POST /auth/{clientId} returns { accessToken }.
- * All subsequent /api/* calls use Authorization: Bearer <accessToken>.
+ * No authorization mode — all /api/* calls are sent without Authorization header.
  * Volume should NEVER be read-modify-write via REST (bug #4458).
  */
 class ApiClient {
     baseUrl = '';
-    accessToken = '';
     fetchFn;
     constructor(fetchFn = globalThis.fetch) {
         this.fetchFn = fetchFn;
@@ -36,26 +34,6 @@ class ApiClient {
     /** Set the target host and port */
     setBaseUrl(host, port) {
         this.baseUrl = `http://${host}:${port}`;
-    }
-    /** Set the access token from the auth flow */
-    setToken(token) {
-        this.accessToken = token;
-    }
-    /**
-     * Authenticate with pear-desktop API Server.
-     * Calls POST /auth/{clientId} — pear-desktop shows a dialog to the user.
-     * On approval, returns { accessToken: "<jwt>" }.
-     * The returned token is used as Bearer token for all /api/* calls.
-     */
-    async authenticate(clientId) {
-        const url = `${this.baseUrl}/auth/${encodeURIComponent(clientId)}`;
-        const response = await this.fetchFn(url, { method: 'POST' });
-        if (!response.ok) {
-            const text = await response.text().catch(() => '');
-            throw new ApiError(`Auth failed: ${response.status} ${text}`, response.status);
-        }
-        const body = (await response.json());
-        return body.accessToken;
     }
     /** Perform a GET request with timeout and retry */
     async get(path) {
@@ -133,10 +111,6 @@ class ApiClient {
         const maxRetries = 2;
         try {
             const response = await this.request(method, path, body);
-            if (response.status === 401) {
-                // 401 is never retried — the token is invalid
-                throw new ApiError('Unauthorized: check your access token', response.status);
-            }
             if (!response.ok && response.status >= 400) {
                 const text = await response.text().catch(() => '');
                 throw new ApiError(`Request failed: ${response.status} ${text}`, response.status);
@@ -144,10 +118,6 @@ class ApiClient {
             return response;
         }
         catch (err) {
-            if (err instanceof ApiError &&
-                err.status === 401) {
-                throw err; // Never retry 401
-            }
             if (attempt < maxRetries) {
                 return this.requestWithRetry(method, path, body, attempt + 1);
             }
@@ -160,9 +130,6 @@ class ApiClient {
         try {
             const url = `${this.baseUrl}${path}`;
             const headers = {};
-            if (this.accessToken) {
-                headers['Authorization'] = `Bearer ${this.accessToken}`;
-            }
             if (body) {
                 headers['Content-Type'] = 'application/json';
             }
@@ -186,7 +153,7 @@ const apiClient = new ApiClient();
 const BACKOFF_SEQUENCE = [1000, 2000, 4000, 8000, 16000, 32000, 60000];
 /**
  * WebSocket client for pear-desktop API Server communication.
- * Token is passed as a query parameter in the WS URL: /api/v1/ws?token=<jwt>
+ * No auth mode — connects directly without token query param.
  * Typed event pub/sub for player state events.
  * Exponential backoff reconnect capped at 60s, reset on success.
  */
@@ -204,11 +171,11 @@ class WsClient {
     }
     /**
      * Connect to the WebSocket server.
-     * Token is appended as a query parameter: ws://host:port/api/v1/ws?token=<token>
+     * No auth token — direct connection: ws://host:port/api/v1/ws
      */
-    connect(baseUrl, token) {
+    connect(baseUrl) {
         this.disposed = false;
-        const wsUrl = `${baseUrl}${WS_PATH}?token=${encodeURIComponent(token)}`;
+        const wsUrl = `${baseUrl}${WS_PATH}`;
         this.createSocket(wsUrl);
     }
     /** Close the WebSocket and stop reconnect attempts */
@@ -353,14 +320,10 @@ const stateStore = new StateStore();
 /**
  * Manages connection lifecycle to pear-desktop API Server.
  *
- * Flow:
+ * Simplified flow (no auth — "No authorization" mode):
  *   1. connect(host, port) → probe TCP/HTTP reachability
- *   2. Probe OK → state 'connected'
- *   3. authenticate(clientId) → POST /auth/{clientId}
- *      a. pear-desktop shows user a dialog
- *      b. User clicks Allow → returns { accessToken }
- *      c. Stores token, transitions to 'authenticated'
- *   4. Start WebSocket for real-time events
+ *   2. Probe OK → state 'authenticated' + start WebSocket
+ *   3. Probe fails → state 'disconnected'
  */
 class ConnectionManager {
     apiClient;
@@ -370,8 +333,6 @@ class ConnectionManager {
     probeTimer = null;
     currentHost = DEFAULT_HOST;
     currentPort = DEFAULT_PORT;
-    currentToken = '';
-    useAuth = false;
     constructor(apiClient, wsClient) {
         this.apiClient = apiClient;
         this.wsClient = wsClient;
@@ -386,42 +347,14 @@ class ConnectionManager {
     }
     /**
      * Initiate connection: probe the host/port to verify reachability.
-     * Does NOT perform authentication — call authenticate() after probe succeeds.
-     * @param useAuth — when false, authenticate() skips the API call and goes straight to 'authenticated'.
+     * On success, transitions directly to 'authenticated' and starts WebSocket.
      */
-    connect(host, port, useAuth = false) {
+    connect(host, port) {
         this.currentHost = host;
         this.currentPort = port;
-        this.useAuth = useAuth;
         this.apiClient.setBaseUrl(host, port);
         this.transition('connecting');
         this.startProbe();
-    }
-    /**
-     * Authenticate with pear-desktop using the API Server auth flow.
-     * When useAuth is false, skips the API call and transitions directly to 'authenticated'.
-     * When useAuth is true, calls POST /auth/{clientId} — user sees a dialog in pear-desktop.
-     * On success, stores the access token and starts the WebSocket connection.
-     */
-    async authenticate(clientId) {
-        if (!this.useAuth) {
-            this.currentToken = '';
-            this.apiClient.setToken('');
-            this.transition('authenticated');
-            this.startWsConnection();
-            return;
-        }
-        this.transition('waiting_for_auth');
-        try {
-            const token = await this.apiClient.authenticate(clientId);
-            this.currentToken = token;
-            this.apiClient.setToken(token);
-            this.transition('authenticated');
-            this.startWsConnection();
-        }
-        catch {
-            this.transition('disconnected');
-        }
     }
     /** Disconnect WebSocket and reset to disconnected state */
     disconnect() {
@@ -466,7 +399,8 @@ class ConnectionManager {
         fetch(probeUrl, { signal: controller.signal })
             .then(() => {
             this.clearProbe();
-            this.transition('connected');
+            this.transition('authenticated');
+            this.startWsConnection();
         })
             .catch(() => {
             this.clearProbe();
@@ -479,7 +413,7 @@ class ConnectionManager {
         this.wsClient.onReconnect = (_delay) => {
             this.transition('connecting');
         };
-        this.wsClient.connect(wsUrl, this.currentToken);
+        this.wsClient.connect(wsUrl);
     }
     clearProbe() {
         if (this.probeTimer !== null) {
@@ -619,7 +553,7 @@ class BaseKeypadAction extends SingletonAction {
     }
 }
 (() => {
-    let _classDecorators = [action({ UUID: 'com.streamdek.play-pause' })];
+    let _classDecorators = [action({ UUID: 'com.streamdek.controller.play-pause' })];
     let _classDescriptor;
     let _classExtraInitializers = [];
     let _classThis;
@@ -644,7 +578,7 @@ class BaseKeypadAction extends SingletonAction {
     return _classThis;
 })();
 (() => {
-    let _classDecorators = [action({ UUID: 'com.streamdek.next-track' })];
+    let _classDecorators = [action({ UUID: 'com.streamdek.controller.next-track' })];
     let _classDescriptor;
     let _classExtraInitializers = [];
     let _classThis;
@@ -667,7 +601,7 @@ class BaseKeypadAction extends SingletonAction {
     return _classThis;
 })();
 (() => {
-    let _classDecorators = [action({ UUID: 'com.streamdek.previous-track' })];
+    let _classDecorators = [action({ UUID: 'com.streamdek.controller.previous-track' })];
     let _classDescriptor;
     let _classExtraInitializers = [];
     let _classThis;
@@ -690,7 +624,7 @@ class BaseKeypadAction extends SingletonAction {
     return _classThis;
 })();
 (() => {
-    let _classDecorators = [action({ UUID: 'com.streamdek.like' })];
+    let _classDecorators = [action({ UUID: 'com.streamdek.controller.like' })];
     let _classDescriptor;
     let _classExtraInitializers = [];
     let _classThis;
@@ -715,7 +649,7 @@ class BaseKeypadAction extends SingletonAction {
     return _classThis;
 })();
 (() => {
-    let _classDecorators = [action({ UUID: 'com.streamdek.dislike' })];
+    let _classDecorators = [action({ UUID: 'com.streamdek.controller.dislike' })];
     let _classDescriptor;
     let _classExtraInitializers = [];
     let _classThis;
@@ -740,7 +674,7 @@ class BaseKeypadAction extends SingletonAction {
     return _classThis;
 })();
 (() => {
-    let _classDecorators = [action({ UUID: 'com.streamdek.shuffle' })];
+    let _classDecorators = [action({ UUID: 'com.streamdek.controller.shuffle' })];
     let _classDescriptor;
     let _classExtraInitializers = [];
     let _classThis;
@@ -765,7 +699,7 @@ class BaseKeypadAction extends SingletonAction {
     return _classThis;
 })();
 (() => {
-    let _classDecorators = [action({ UUID: 'com.streamdek.repeat' })];
+    let _classDecorators = [action({ UUID: 'com.streamdek.controller.repeat' })];
     let _classDescriptor;
     let _classExtraInitializers = [];
     let _classThis;
@@ -793,7 +727,7 @@ class BaseKeypadAction extends SingletonAction {
     return _classThis;
 })();
 (() => {
-    let _classDecorators = [action({ UUID: 'com.streamdek.go-forward' })];
+    let _classDecorators = [action({ UUID: 'com.streamdek.controller.go-forward' })];
     let _classDescriptor;
     let _classExtraInitializers = [];
     let _classThis;
@@ -818,7 +752,7 @@ class BaseKeypadAction extends SingletonAction {
     return _classThis;
 })();
 (() => {
-    let _classDecorators = [action({ UUID: 'com.streamdek.go-back' })];
+    let _classDecorators = [action({ UUID: 'com.streamdek.controller.go-back' })];
     let _classDescriptor;
     let _classExtraInitializers = [];
     let _classThis;
@@ -843,7 +777,7 @@ class BaseKeypadAction extends SingletonAction {
     return _classThis;
 })();
 (() => {
-    let _classDecorators = [action({ UUID: 'com.streamdek.set-volume' })];
+    let _classDecorators = [action({ UUID: 'com.streamdek.controller.set-volume' })];
     let _classDescriptor;
     let _classExtraInitializers = [];
     let _classThis;
@@ -869,7 +803,7 @@ class BaseKeypadAction extends SingletonAction {
     return _classThis;
 })();
 (() => {
-    let _classDecorators = [action({ UUID: 'com.streamdek.add-track' })];
+    let _classDecorators = [action({ UUID: 'com.streamdek.controller.add-track' })];
     let _classDescriptor;
     let _classExtraInitializers = [];
     let _classThis;
@@ -900,7 +834,7 @@ class BaseKeypadAction extends SingletonAction {
     return _classThis;
 })();
 (() => {
-    let _classDecorators = [action({ UUID: 'com.streamdek.add-playlist' })];
+    let _classDecorators = [action({ UUID: 'com.streamdek.controller.add-playlist' })];
     let _classDescriptor;
     let _classExtraInitializers = [];
     let _classThis;
@@ -990,7 +924,7 @@ class BaseEncoderAction extends SingletonAction {
  * Press: toggle mute
  */
 (() => {
-    let _classDecorators = [action({ UUID: 'com.streamdek.volume' })];
+    let _classDecorators = [action({ UUID: 'com.streamdek.controller.volume' })];
     let _classDescriptor;
     let _classExtraInitializers = [];
     let _classThis;
@@ -1049,7 +983,7 @@ class BaseEncoderAction extends SingletonAction {
  * Press: play/pause
  */
 (() => {
-    let _classDecorators = [action({ UUID: 'com.streamdek.seek' })];
+    let _classDecorators = [action({ UUID: 'com.streamdek.controller.seek' })];
     let _classDescriptor;
     let _classExtraInitializers = [];
     let _classThis;
@@ -1112,7 +1046,7 @@ const DEFAULT_TEMPLATE = '{title}\n{artist}';
  *   VIDEO_CHANGED → re-render when song changes
  */
 (() => {
-    let _classDecorators = [action({ UUID: 'com.streamdek.artwork' })];
+    let _classDecorators = [action({ UUID: 'com.streamdek.controller.artwork' })];
     let _classDescriptor;
     let _classExtraInitializers = [];
     let _classThis;
@@ -1222,22 +1156,12 @@ const DEFAULT_TEMPLATE = '{title}\n{artist}';
 })();
 
 /**
- * Generate a persistent client ID for this Stream Deck instance.
- * Stored in global settings so it survives plugin restarts.
- */
-function generateClientId() {
-    const randomPart = Math.random().toString(36).substring(2, 10);
-    return `streamdek-${randomPart}`;
-}
-/**
  * Streamdek plugin entry point.
  *
- * Flow:
- *  1. Load or generate a persistent clientId
- *  2. Connect to pear-desktop (probe host:port)
- *  3. Authenticate via POST /auth/{clientId}
- *  4. Start WebSocket for real-time state updates
- *  5. Subscribe WS events to StateStore
+ * Simplified flow (no auth — "No authorization" mode):
+ *  1. Connect to pear-desktop (probe host:port)
+ *  2. Probe OK → start WebSocket for real-time state updates
+ *  3. Subscribe WS events to StateStore
  */
 async function main() {
     // Initialize connection manager with injected services
@@ -1246,25 +1170,6 @@ async function main() {
     const settings = await streamDeck$1.settings.getGlobalSettings();
     const host = settings.host || DEFAULT_HOST;
     const port = settings.port || DEFAULT_PORT;
-    const useAuth = settings.useAuth === true; // default: false (no auth)
-    // Generate or retrieve persistent clientId
-    let clientId = settings.clientId;
-    if (!clientId) {
-        clientId = generateClientId();
-        await streamDeck$1.settings.setGlobalSettings({
-            ...settings,
-            clientId,
-        });
-        logger.info(`Generated new clientId: ${clientId}`);
-    }
-    // Load existing access token if available
-    if (settings.accessToken) {
-        apiClient.setToken(settings.accessToken);
-    }
-    else if (!useAuth) {
-        // No auth mode: clear any stale token
-        apiClient.setToken('');
-    }
     // Subscribe WS events to StateStore using real pear-desktop event types
     wsClient.subscribe('PLAYER_INFO', (data) => {
         stateStore.update({
@@ -1310,29 +1215,18 @@ async function main() {
             shuffle: data.shuffle,
         });
     });
-    // Connect and authenticate
-    logger.info(`Connecting to pear-desktop at ${host}:${port} (useAuth=${useAuth})`);
-    connectionManager.connect(host, port, useAuth);
-    // Listen for state changes to initiate auth when probe succeeds
+    // Connect — probe then auto-start WebSocket on success
+    logger.info(`Connecting to pear-desktop at ${host}:${port}`);
+    connectionManager.connect(host, port);
+    // Listen for state changes
     connectionManager.onStateChange(async (state) => {
-        if (state === 'connected') {
-            logger.info('Probe successful — initiating authentication');
-            try {
-                await connectionManager.authenticate(clientId);
-                logger.info('Authentication successful');
-                // Persist settings for reconnection
-                await streamDeck$1.settings.setGlobalSettings({
-                    ...settings,
-                    clientId,
-                    host,
-                    port,
-                    useAuth,
-                    accessToken: useAuth ? apiClient['accessToken'] : '',
-                });
-            }
-            catch (err) {
-                logger.error(`Authentication failed: ${String(err)}`);
-            }
+        if (state === 'authenticated') {
+            logger.info('Connected to pear-desktop');
+            // Persist settings for reconnection
+            await streamDeck$1.settings.setGlobalSettings({
+                host,
+                port,
+            });
         }
         if (state === 'disconnected') {
             logger.info('Disconnected from pear-desktop');
@@ -1347,14 +1241,11 @@ async function main() {
         const newPort = newSettings.port || DEFAULT_PORT;
         logger.info(`Settings changed — reconnecting to ${newHost}:${newPort}`);
         connectionManager.disconnect();
-        connectionManager.connect(newHost, newPort, newSettings.useAuth === true);
-        if (newSettings.clientId) {
-            clientId = newSettings.clientId;
-        }
+        connectionManager.connect(newHost, newPort);
     });
     // Connect to Stream Deck
     await streamDeck$1.connect();
-    logger.info('Streamdek plugin started');
+    logger.info('Streamdek Controller plugin started');
 }
 main().catch((err) => {
     logger.error(`Plugin startup failed: ${String(err)}`);

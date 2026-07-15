@@ -23,7 +23,7 @@ const DEFAULT_TEMPLATE = '{title}\n{artist}';
  *   onWillDisappear → unsubscribe
  *   VIDEO_CHANGED → re-render when song changes
  */
-@action({ UUID: 'com.streamdek.artwork' })
+@action({ UUID: 'com.streamdek.controller.artwork' })
 export class ArtworkAction extends SingletonAction<PluginSettings> {
   private unsubscribe: (() => void) | null = null;
 

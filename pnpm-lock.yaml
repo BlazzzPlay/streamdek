@@ -9,7 +9,7 @@ importers:
   .:
     dependencies:
       '@elgato/streamdeck':
-        specifier: ^2.0.0
+        specifier: ^2.1.0
         version: 2.1.0
     devDependencies:
       '@rollup/plugin-json':

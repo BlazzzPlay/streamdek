@@ -8,14 +8,10 @@ type StateListener = (state: ConnectionState) => void;
 /**
  * Manages connection lifecycle to pear-desktop API Server.
  *
- * Flow:
+ * Simplified flow (no auth — "No authorization" mode):
  *   1. connect(host, port) → probe TCP/HTTP reachability
- *   2. Probe OK → state 'connected'
- *   3. authenticate(clientId) → POST /auth/{clientId}
- *      a. pear-desktop shows user a dialog
- *      b. User clicks Allow → returns { accessToken }
- *      c. Stores token, transitions to 'authenticated'
- *   4. Start WebSocket for real-time events
+ *   2. Probe OK → state 'authenticated' + start WebSocket
+ *   3. Probe fails → state 'disconnected'
  */
 export class ConnectionManager {
   private apiClient: ApiClient;
@@ -25,8 +21,6 @@ export class ConnectionManager {
   private probeTimer: ReturnType<typeof setTimeout> | null = null;
   private currentHost = DEFAULT_HOST;
   private currentPort = DEFAULT_PORT;
-  private currentToken = '';
-  private useAuth = false;
 
   constructor(apiClient: ApiClient, wsClient: WsClient) {
     this.apiClient = apiClient;
@@ -45,46 +39,16 @@ export class ConnectionManager {
 
   /**
    * Initiate connection: probe the host/port to verify reachability.
-   * Does NOT perform authentication — call authenticate() after probe succeeds.
-   * @param useAuth — when false, authenticate() skips the API call and goes straight to 'authenticated'.
+   * On success, transitions directly to 'authenticated' and starts WebSocket.
    */
-  connect(host: string, port: number, useAuth = false): void {
+  connect(host: string, port: number): void {
     this.currentHost = host;
     this.currentPort = port;
-    this.useAuth = useAuth;
 
     this.apiClient.setBaseUrl(host, port);
 
     this.transition('connecting');
     this.startProbe();
-  }
-
-  /**
-   * Authenticate with pear-desktop using the API Server auth flow.
-   * When useAuth is false, skips the API call and transitions directly to 'authenticated'.
-   * When useAuth is true, calls POST /auth/{clientId} — user sees a dialog in pear-desktop.
-   * On success, stores the access token and starts the WebSocket connection.
-   */
-  async authenticate(clientId: string): Promise<void> {
-    if (!this.useAuth) {
-      this.currentToken = '';
-      this.apiClient.setToken('');
-      this.transition('authenticated');
-      this.startWsConnection();
-      return;
-    }
-
-    this.transition('waiting_for_auth');
-
-    try {
-      const token = await this.apiClient.authenticate(clientId);
-      this.currentToken = token;
-      this.apiClient.setToken(token);
-      this.transition('authenticated');
-      this.startWsConnection();
-    } catch {
-      this.transition('disconnected');
-    }
   }
 
   /** Disconnect WebSocket and reset to disconnected state */
@@ -136,7 +100,8 @@ export class ConnectionManager {
     fetch(probeUrl, { signal: controller.signal })
       .then(() => {
         this.clearProbe();
-        this.transition('connected');
+        this.transition('authenticated');
+        this.startWsConnection();
       })
       .catch(() => {
         this.clearProbe();
@@ -152,7 +117,7 @@ export class ConnectionManager {
       this.transition('connecting');
     };
 
-    this.wsClient.connect(wsUrl, this.currentToken);
+    this.wsClient.connect(wsUrl);
   }
 
   private clearProbe(): void {

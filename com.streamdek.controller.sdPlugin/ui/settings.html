@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Streamdek — Settings</title>
+  <title>Streamdek Controller — Settings</title>
   <style>
     :root {
       --bg: #1a1a2e;
@@ -70,11 +70,6 @@
       opacity: 0.5;
       cursor: not-allowed;
     }
-    button.secondary {
-      background: var(--surface);
-      color: var(--text);
-      border: 1px solid var(--border);
-    }
     #status {
       padding: 8px 12px;
       border-radius: 6px;
@@ -85,14 +80,6 @@
     #status.success { background: rgba(81,207,102,0.15); color: var(--success); }
     #status.error { background: rgba(255,107,107,0.15); color: var(--error); }
     #status.info { background: rgba(0,212,255,0.1); color: var(--accent); }
-    .mono {
-      font-family: 'SF Mono', 'Fira Code', monospace;
-      font-size: 11px;
-      background: rgba(0,212,255,0.1);
-      padding: 4px 8px;
-      border-radius: 4px;
-      word-break: break-all;
-    }
     hr {
       border: none;
       border-top: 1px solid var(--border);
@@ -138,53 +125,23 @@
 
   <div id="status"></div>
 
-  <div style="margin-bottom: 12px;">
-    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text);">
-      <input type="checkbox" id="useAuth" style="width: auto; margin: 0;">
-      Use authentication (AUTH_AT_FIRST mode)
-    </label>
-    <p style="font-size: 11px; color: #888; margin-top: 4px; padding-left: 26px;">
-      Unchecked: no auth — pear-desktop API Server must be set to "No authorization". Recommended.
-    </p>
-  </div>
-
-  <button id="discover">Probe Connection</button>
-  <button id="authorize" style="display: none;">Connect &amp; Authorize</button>
-
-  <div id="clientInfo" style="display: none; margin-bottom: 12px;">
-    <label>Client ID</label>
-    <div class="mono" id="clientIdDisplay"></div>
-  </div>
-
-  <div id="authSection" style="display: none;">
-    <label>Authorization Status</label>
-    <div id="authStatus" style="font-size: 13px; padding: 8px; border-radius: 6px; background: var(--surface);"></div>
-  </div>
+  <button id="discover">Probe &amp; Connect</button>
 
   <hr>
 
   <div class="guide">
     <h3>API Server Activation Guide</h3>
-    <p>Streamdek works with pear-desktop's API Server. Choose one of these methods:</p>
+    <p>Streamdek Controller connects to pear-desktop's API Server with no authorization.</p>
 
-    <h4 style="margin-top: 10px; color: var(--success);">Option A — No Authorization (recommended)</h4>
+    <h4 style="margin-top: 10px; color: var(--success);">Setup Instructions</h4>
     <ol>
       <li>Open <strong>pear-desktop</strong></li>
       <li>Go to <strong>Settings → API Server</strong></li>
       <li>Check <strong>Enable API Server</strong></li>
       <li>Set Authorization to <strong>"No authorization"</strong></li>
       <li>Set port to <code>26538</code> (default)</li>
-      <li>In Streamdek, leave "Use authentication" <strong>unchecked</strong></li>
-      <li>Click <strong>Probe Connection</strong> — Streamdek connects instantly</li>
-    </ol>
-
-    <h4 style="margin-top: 10px; color: var(--accent);">Option B — AUTH_AT_FIRST</h4>
-    <ol>
-      <li>Set pear API Server Authorization to <strong>"AUTH_AT_FIRST"</strong></li>
-      <li>In Streamdek, <strong>check "Use authentication"</strong></li>
-      <li>Click <strong>Connect &amp; Authorize</strong></li>
-      <li>pear-desktop will show a dialog — click <strong>Allow</strong></li>
-      <li>Streamdek connects automatically</li>
+      <li>In Streamdek Controller, click <strong>Probe &amp; Connect</strong></li>
+      <li>Streamdek connects instantly — ready to use</li>
     </ol>
 
     <p style="margin-top: 8px; color: #aaa;">

@@ -1,5 +1,4 @@
 import { REQUEST_TIMEOUT_MS } from './endpoints.js';
-import type { PluginSettings } from './types.js';
 
 /** Error thrown when pear-desktop API returns a non-2xx status */
 export class ApiError extends Error {
@@ -14,13 +13,11 @@ export class ApiError extends Error {
 
 /**
  * REST client for pear-desktop API Server.
- * Implements the real auth flow: POST /auth/{clientId} returns { accessToken }.
- * All subsequent /api/* calls use Authorization: Bearer <accessToken>.
+ * No authorization mode — all /api/* calls are sent without Authorization header.
  * Volume should NEVER be read-modify-write via REST (bug #4458).
  */
 export class ApiClient {
   private baseUrl = '';
-  private accessToken = '';
   private fetchFn: typeof fetch;
 
   constructor(fetchFn: typeof fetch = globalThis.fetch) {
@@ -30,33 +27,6 @@ export class ApiClient {
   /** Set the target host and port */
   setBaseUrl(host: string, port: number): void {
     this.baseUrl = `http://${host}:${port}`;
-  }
-
-  /** Set the access token from the auth flow */
-  setToken(token: string): void {
-    this.accessToken = token;
-  }
-
-  /**
-   * Authenticate with pear-desktop API Server.
-   * Calls POST /auth/{clientId} — pear-desktop shows a dialog to the user.
-   * On approval, returns { accessToken: "<jwt>" }.
-   * The returned token is used as Bearer token for all /api/* calls.
-   */
-  async authenticate(clientId: string): Promise<string> {
-    const url = `${this.baseUrl}/auth/${encodeURIComponent(clientId)}`;
-    const response = await this.fetchFn(url, { method: 'POST' });
-
-    if (!response.ok) {
-      const text = await response.text().catch(() => '');
-      throw new ApiError(
-        `Auth failed: ${response.status} ${text}`,
-        response.status,
-      );
-    }
-
-    const body = (await response.json()) as { accessToken: string };
-    return body.accessToken;
   }
 
   /** Perform a GET request with timeout and retry */
@@ -158,14 +128,6 @@ export class ApiClient {
     try {
       const response = await this.request(method, path, body);
 
-      if (response.status === 401) {
-        // 401 is never retried — the token is invalid
-        throw new ApiError(
-          'Unauthorized: check your access token',
-          response.status,
-        );
-      }
-
       if (!response.ok && response.status >= 400) {
         const text = await response.text().catch(() => '');
         throw new ApiError(
@@ -176,13 +138,6 @@ export class ApiClient {
 
       return response;
     } catch (err) {
-      if (
-        err instanceof ApiError &&
-        err.status === 401
-      ) {
-        throw err; // Never retry 401
-      }
-
       if (attempt < maxRetries) {
         return this.requestWithRetry(method, path, body, attempt + 1);
       }
@@ -202,10 +157,6 @@ export class ApiClient {
     try {
       const url = `${this.baseUrl}${path}`;
       const headers: Record<string, string> = {};
-
-      if (this.accessToken) {
-        headers['Authorization'] = `Bearer ${this.accessToken}`;
-      }
 
       if (body) {
         headers['Content-Type'] = 'application/json';

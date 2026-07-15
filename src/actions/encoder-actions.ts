@@ -67,7 +67,7 @@ abstract class BaseEncoderAction extends SingletonAction<PluginSettings> {
  * Rotate: adjust volume ±2 (from WS cache, bug #4458)
  * Press: toggle mute
  */
-@action({ UUID: 'com.streamdek.volume' })
+@action({ UUID: 'com.streamdek.controller.volume' })
 export class VolumeAction extends BaseEncoderAction {
   async onDialRotate(ev: DialRotateEvent<PluginSettings>): Promise<void> {
     await this.executeIfReady(async () => {
@@ -115,7 +115,7 @@ export class VolumeAction extends BaseEncoderAction {
  * Rotate: seek ±5 seconds
  * Press: play/pause
  */
-@action({ UUID: 'com.streamdek.seek' })
+@action({ UUID: 'com.streamdek.controller.seek' })
 export class SeekAction extends BaseEncoderAction {
   async onDialRotate(ev: DialRotateEvent<PluginSettings>): Promise<void> {
     await this.executeIfReady(async () => {

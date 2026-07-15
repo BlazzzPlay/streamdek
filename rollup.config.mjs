@@ -5,7 +5,7 @@ import resolve from '@rollup/plugin-node-resolve';
 export default {
   input: 'src/plugin.ts',
   output: {
-    file: 'com.streamdek.sdPlugin/bin/plugin.js',
+    file: 'com.streamdek.controller.sdPlugin/bin/plugin.js',
     format: 'esm',
     sourcemap: true,
   },
