@@ -314,5 +314,55 @@ describe('ApiClient', () => {
       const init = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
       expect(init?.method).toBe('GET');
     });
+
+    it('goForward should POST to /api/v1/go-forward with seconds', async () => {
+      await client.goForward(15);
+
+      const url = fetchMock.mock.calls[0]?.[0] as string;
+      expect(url).toContain(ENDPOINTS.GO_FORWARD);
+      const init = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+      expect(init?.body).toBe(JSON.stringify({ seconds: 15 }));
+    });
+
+    it('goBack should POST to /api/v1/go-back with seconds', async () => {
+      await client.goBack(5);
+
+      const url = fetchMock.mock.calls[0]?.[0] as string;
+      expect(url).toContain(ENDPOINTS.GO_BACK);
+      const init = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+      expect(init?.body).toBe(JSON.stringify({ seconds: 5 }));
+    });
+
+    it('addTrack should POST to /api/v1/queue with videoId', async () => {
+      await client.addTrack('dQw4w9WgXcQ');
+
+      const url = fetchMock.mock.calls[0]?.[0] as string;
+      expect(url).toContain(ENDPOINTS.QUEUE);
+      const init = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+      expect(init?.body).toBe(JSON.stringify({ videoId: 'dQw4w9WgXcQ' }));
+    });
+
+    it('addTrack should include forcePlay when true', async () => {
+      await client.addTrack('dQw4w9WgXcQ', true);
+
+      const init = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+      expect(init?.body).toBe(JSON.stringify({ videoId: 'dQw4w9WgXcQ', forcePlay: true }));
+    });
+
+    it('addPlaylist should POST to /api/v1/queue with playlistId', async () => {
+      await client.addPlaylist('PL123');
+
+      const url = fetchMock.mock.calls[0]?.[0] as string;
+      expect(url).toContain(ENDPOINTS.QUEUE);
+      const init = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+      expect(init?.body).toBe(JSON.stringify({ playlistId: 'PL123' }));
+    });
+
+    it('addPlaylist should include forcePlay and shuffle when true', async () => {
+      await client.addPlaylist('PL456', true, true);
+
+      const init = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+      expect(init?.body).toBe(JSON.stringify({ playlistId: 'PL456', forcePlay: true, shuffle: true }));
+    });
   });
 });

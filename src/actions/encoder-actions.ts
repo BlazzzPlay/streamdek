@@ -37,22 +37,27 @@ abstract class BaseEncoderAction extends SingletonAction<PluginSettings> {
   }
 
   /**
-   * Show a warning indicator on the encoder touch strip when pear-desktop is unreachable.
+   * Update feedback layout with bar value and text.
+   * With $B1 layout, value controls the bar indicator and title shows the label.
    */
-  protected showDisconnectedWarning(): void {
+  protected updateFeedback(title: string, barValue?: number): void {
+    if (!connectionManager.isAuthenticated()) return;
+
     for (const action of this.actions) {
-      (action as any).setFeedback?.({ title: '⚠ Offline' }).catch(() => {});
+      const feedback: Record<string, unknown> = { title };
+      if (barValue !== undefined) {
+        feedback.value = barValue;
+      }
+      (action as any).setFeedback?.(feedback).catch(() => {});
     }
   }
 
   /**
-   * Update feedback layout with current value text.
+   * Show a warning indicator on the encoder touch strip when pear-desktop is unreachable.
    */
-  protected updateFeedback(value: string): void {
-    if (!connectionManager.isAuthenticated()) return;
-
+  protected showDisconnectedWarning(): void {
     for (const action of this.actions) {
-      (action as any).setFeedback?.({ title: value }).catch(() => {});
+      (action as any).setFeedback?.({ title: '⚠ Offline', value: 0 }).catch(() => {});
     }
   }
 }
@@ -76,13 +81,13 @@ export class VolumeAction extends BaseEncoderAction {
         // Unmute at current volume level
         const newVol = Math.max(0, Math.min(100, currentVol));
         await apiClient.setVolume(newVol);
-        this.updateFeedback(`Vol: ${newVol}`);
+        this.updateFeedback(`${newVol}`, newVol);
         return;
       }
 
       const newVol = Math.max(0, Math.min(100, currentVol + delta));
       await apiClient.setVolume(newVol);
-      this.updateFeedback(`Vol: ${newVol}`);
+      this.updateFeedback(`${newVol}`, newVol);
     });
   }
 
@@ -92,10 +97,10 @@ export class VolumeAction extends BaseEncoderAction {
       if (muted) {
         const currentVol = stateStore.get('volume');
         await apiClient.setVolume(currentVol);
-        this.updateFeedback(`Vol: ${currentVol}`);
+        this.updateFeedback(`${currentVol}`, currentVol);
       } else {
         await apiClient.setVolume(0);
-        this.updateFeedback('Muted');
+        this.updateFeedback('Muted', 0);
       }
     });
   }
@@ -122,7 +127,8 @@ export class SeekAction extends BaseEncoderAction {
 
       const newPos = Math.max(0, Math.min(duration || 9999, currentPos + delta));
       await apiClient.seekTo(newPos);
-      this.updateFeedback(formatTime(newPos));
+      const barValue = duration > 0 ? Math.round((newPos / duration) * 100) : 0;
+      this.updateFeedback(formatTime(newPos), barValue);
     });
   }
 

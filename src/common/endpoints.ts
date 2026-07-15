@@ -17,6 +17,9 @@ export const ENDPOINTS = {
   TOGGLE_MUTE: `${API_BASE}/toggle-mute`,
   SEEK_TO: `${API_BASE}/seek-to`,
   SONG: `${API_BASE}/song`,
+  GO_FORWARD: `${API_BASE}/go-forward`,
+  GO_BACK: `${API_BASE}/go-back`,
+  QUEUE: `${API_BASE}/queue`,
 } as const;
 
 /** Default pear-desktop host and port */

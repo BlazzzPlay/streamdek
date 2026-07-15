@@ -10,6 +10,7 @@ import type { PluginSettings } from './common/types.js';
 // Import action classes (decorators auto-register them with the SDK)
 import './actions/keypad-actions.js';
 import './actions/encoder-actions.js';
+import './actions/artwork-action.js';
 
 /**
  * Generate a persistent client ID for this Stream Deck instance.

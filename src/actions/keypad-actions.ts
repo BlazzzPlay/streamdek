@@ -107,3 +107,76 @@ export class RepeatAction extends BaseKeypadAction {
     });
   }
 }
+
+@action({ UUID: 'com.streamdek.go-forward' })
+export class GoForwardAction extends BaseKeypadAction {
+  async onKeyDown(ev: KeyDownEvent<PluginSettings>): Promise<void> {
+    await this.executeIfReady(ev, async () => {
+      const seconds = (ev.payload.settings as { seconds?: number })?.seconds ?? 10;
+      await apiClient.goForward(seconds);
+      await ev.action.showOk();
+    });
+  }
+}
+
+@action({ UUID: 'com.streamdek.go-back' })
+export class GoBackAction extends BaseKeypadAction {
+  async onKeyDown(ev: KeyDownEvent<PluginSettings>): Promise<void> {
+    await this.executeIfReady(ev, async () => {
+      const seconds = (ev.payload.settings as { seconds?: number })?.seconds ?? 10;
+      await apiClient.goBack(seconds);
+      await ev.action.showOk();
+    });
+  }
+}
+
+@action({ UUID: 'com.streamdek.set-volume' })
+export class SetVolumeAction extends BaseKeypadAction {
+  async onKeyDown(ev: KeyDownEvent<PluginSettings>): Promise<void> {
+    await this.executeIfReady(ev, async () => {
+      const volume = (ev.payload.settings as { volume?: number })?.volume ?? 50;
+      const clamped = Math.max(0, Math.min(100, volume));
+      await apiClient.setVolume(clamped);
+      await ev.action.showOk();
+    });
+  }
+}
+
+@action({ UUID: 'com.streamdek.add-track' })
+export class AddTrackAction extends BaseKeypadAction {
+  async onKeyDown(ev: KeyDownEvent<PluginSettings>): Promise<void> {
+    await this.executeIfReady(ev, async () => {
+      const settings = ev.payload.settings as { videoId?: string; forcePlay?: boolean };
+      const videoId = settings?.videoId;
+      if (!videoId) {
+        await ev.action.setImage('imgs/actions/warning');
+        return;
+      }
+      const forcePlay = settings?.forcePlay ?? false;
+      await apiClient.addTrack(videoId, forcePlay);
+      await ev.action.showOk();
+    });
+  }
+}
+
+@action({ UUID: 'com.streamdek.add-playlist' })
+export class AddPlaylistAction extends BaseKeypadAction {
+  async onKeyDown(ev: KeyDownEvent<PluginSettings>): Promise<void> {
+    await this.executeIfReady(ev, async () => {
+      const settings = ev.payload.settings as {
+        playlistId?: string;
+        forcePlay?: boolean;
+        shuffle?: boolean;
+      };
+      const playlistId = settings?.playlistId;
+      if (!playlistId) {
+        await ev.action.setImage('imgs/actions/warning');
+        return;
+      }
+      const forcePlay = settings?.forcePlay ?? false;
+      const shuffle = settings?.shuffle ?? false;
+      await apiClient.addPlaylist(playlistId, forcePlay, shuffle);
+      await ev.action.showOk();
+    });
+  }
+}

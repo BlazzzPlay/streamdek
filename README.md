@@ -8,7 +8,7 @@ Streamdek es un plugin para Elgato Stream Deck que ofrece control completo de me
 
 ## Características
 
-### Acciones de tecla (7)
+### Acciones de tecla (13)
 | Acción | Comportamiento |
 |--------|---------------|
 | **Play/Pause** | Alternar reproducción. El ícono refleja el estado actual |
@@ -18,14 +18,21 @@ Streamdek es un plugin para Elgato Stream Deck que ofrece control completo de me
 | **No me gusta** | Dislike a la canción actual |
 | **Aleatorio** | Activar/desactivar modo aleatorio |
 | **Repetir** | Rotar modo: apagado → una → todas → apagado |
+| **Adelantar** | Saltar hacia adelante (segundos configurables, default 10) |
+| **Retroceder** | Saltar hacia atrás (segundos configurables, default 10) |
+| **Artwork** | Mostrar carátula del álbum con texto superpuesto (template: `{title}`, `{artist}`, `{album}`) |
+| **Set Volume** | Establecer volumen absoluto (0-100, configurable) |
+| **Add Track** | Agregar canción a la cola por videoId |
+| **Add Playlist** | Agregar playlist a la cola por playlistId |
 
 ### Acciones de perilla (Stream Deck Plus)
 | Acción | Comportamiento |
 |--------|---------------|
-| **Volumen** | Girar: ±2 de volumen. Presionar: mute. Pantalla táctil: valor actual |
-| **Seek** | Girar: ±5s. Presionar: play/pause. Pantalla táctil: posición del track |
+| **Volumen** | Girar: ±2 de volumen. Presionar: mute. Pantalla táctil: barra $B1 + valor |
+| **Seek** | Girar: ±5s. Presionar: play/pause. Pantalla táctil: barra $B1 + posición |
 
 ### Arquitectura
+- **SDK v3** con soporte `SupportedInMultiActions` y layout `$B1` para encoders
 - **Auth** (`POST /auth/{clientId}`) — autorización nativa: pear-desktop muestra diálogo, usuario hace clic en Allow (opcional: modo sin auth disponible)
 - **REST** (`/api/v1/*`) con token Bearer para comandos (sin token cuando useAuth=false)
 - **WebSocket** (`/api/v1/ws?token=<jwt>`) con token como query param para estado en tiempo real
@@ -33,14 +40,16 @@ Streamdek es un plugin para Elgato Stream Deck que ofrece control completo de me
 - **ConnectionManager** maneja la máquina de estados: probe → connected → waiting_for_auth → authenticated
 - **Reconexión** con backoff exponencial (1s → 60s máximo)
 - **Aislamiento de errores por acción**: cada acción muestra un ícono de advertencia al desconectarse
+- **Plantillas de texto** con `{title}`, `{artist}`, `{album}` para personalizar el overlay
+- **Carátula de álbum** en teclas con descarga de thumbnail y barra de progreso
 
 ---
 
 ## Inicio rápido
 
 ### Requisitos
-- Node.js ≥ 24
-- Stream Deck software ≥ 7.1
+- Node.js ≥ 20
+- Stream Deck software ≥ 6.9
 - pear-desktop corriendo con el plugin API Server activado
 
 ### Compilar desde el código fuente
@@ -127,19 +136,21 @@ pnpm dev
 src/
 ├── plugin.ts                    # Punto de entrada
 ├── common/
-│   ├── api-client.ts            # Cliente REST con JWT
+│   ├── api-client.ts            # Cliente REST con JWT + nuevos endpoints
 │   ├── ws-client.ts             # Cliente WebSocket con backoff
 │   ├── connection-manager.ts    # Máquina de estados: probe → conectar → autenticar
 │   ├── state-store.ts           # Cache de estado del reproductor (volumen solo WS)
 │   ├── logger.ts                # Wrapper de streamDeck.logger
-│   ├── types.ts                 # Interfaces TypeScript
+│   ├── types.ts                 # Interfaces TypeScript + SongInfo
+│   ├── template.ts              # Sistema de plantillas de texto
 │   └── endpoints.ts             # Constantes de rutas de la API
 ├── actions/
-│   ├── keypad-actions.ts        # 7 acciones de tecla
-│   └── encoder-actions.ts       # 2 acciones de perilla (dial)
+│   ├── keypad-actions.ts        # 12 acciones de tecla (+ GoForward, GoBack, SetVolume, AddTrack, AddPlaylist)
+│   ├── encoder-actions.ts       # 2 acciones de perilla ($B1 layout)
+│   └── artwork-action.ts        # Acción de carátula con overlay de texto
 └── __tests__/                   # Suites de tests
 com.streamdek.sdPlugin/
-├── manifest.json                # Manifiesto Stream Deck (SDK v2)
+├── manifest.json                # Manifiesto Stream Deck (SDK v3)
 ├── bin/plugin.js                # Plugin compilado
 ├── ui/settings.html             # Property Inspector
 ├── ui/settings.js               # JS del PI
@@ -170,8 +181,8 @@ Streamdek is an Elgato Stream Deck plugin that provides full media control for p
 
 | Type | Actions |
 |------|---------|
-| **Keypad (7)** | Play/Pause, Next Track, Previous Track, Like, Dislike, Shuffle, Repeat |
-| **Encoder (2)** | Volume (rotate ±2, press to mute), Seek (rotate ±5s, press to play/pause) |
+| **Keypad (13)** | Play/Pause, Next Track, Previous Track, Like, Dislike, Shuffle, Repeat, Go Forward, Go Back, Artwork, Set Volume, Add Track, Add Playlist |
+| **Encoder (2)** | Volume (rotate ±2, press to mute, $B1 layout), Seek (rotate ±5s, press to play/pause, $B1 layout) |
 
 - **Native auth flow** — pear-desktop dialog, no manual JWT (optional: no-auth mode for instant connection)
 - **REST API** with Bearer token for commands (no token header in no-auth mode)
@@ -179,6 +190,11 @@ Streamdek is an Elgato Stream Deck plugin that provides full media control for p
 - **Auto-probe** of pear-desktop on configurable host:port
 - **Per-action disconnect warnings** on both Keypad and Encoder displays
 - **Exponential backoff** reconnection (1s → 60s cap)
+- **Album art on keys** — fetches thumbnail from song info with optional text template overlay
+- **Text templates** with `{title}`, `{artist}`, `{album}` tokens
+- **Go Forward/Back** with configurable seconds
+- **Add to Queue** for tracks (videoId) and playlists (playlistId)
+- **SDK v3** with `SupportedInMultiActions` and `$B1` encoder layout
 
 ### Quick Start
 
@@ -209,7 +225,7 @@ pnpm build
 ### Dev
 
 ```bash
-pnpm test          # 111 tests, 87% coverage
+pnpm test          # 170 tests
 pnpm test:coverage
 pnpm typecheck     # tsc --noEmit
 pnpm dev           # watch mode

@@ -109,11 +109,6 @@
       btn.textContent = 'Probe Connection';
     }
   }
-    } finally {
-      btn.disabled = false;
-      btn.textContent = 'Probe Connection';
-    }
-  }
 
   /**
    * Trigger connection + authorization flow.

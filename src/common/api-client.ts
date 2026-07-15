@@ -120,6 +120,31 @@ export class ApiClient {
     return this.get('/api/v1/song');
   }
 
+  /** Skip forward by configured seconds. */
+  goForward(seconds: number): Promise<Response> {
+    return this.post('/api/v1/go-forward', { seconds });
+  }
+
+  /** Skip backward by configured seconds. */
+  goBack(seconds: number): Promise<Response> {
+    return this.post('/api/v1/go-back', { seconds });
+  }
+
+  /** Add a track to the queue. */
+  addTrack(videoId: string, forcePlay = false): Promise<Response> {
+    const body: Record<string, unknown> = { videoId };
+    if (forcePlay) body.forcePlay = true;
+    return this.post('/api/v1/queue', body);
+  }
+
+  /** Add a playlist to the queue. */
+  addPlaylist(playlistId: string, forcePlay = false, shuffle = false): Promise<Response> {
+    const body: Record<string, unknown> = { playlistId };
+    if (forcePlay) body.forcePlay = true;
+    if (shuffle) body.shuffle = true;
+    return this.post('/api/v1/queue', body);
+  }
+
   // ─── Private helpers ───────────────────────────────────────────────
 
   private async requestWithRetry(

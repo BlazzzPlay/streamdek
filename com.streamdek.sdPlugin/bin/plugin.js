@@ -104,6 +104,30 @@ class ApiClient {
     getSong() {
         return this.get('/api/v1/song');
     }
+    /** Skip forward by configured seconds. */
+    goForward(seconds) {
+        return this.post('/api/v1/go-forward', { seconds });
+    }
+    /** Skip backward by configured seconds. */
+    goBack(seconds) {
+        return this.post('/api/v1/go-back', { seconds });
+    }
+    /** Add a track to the queue. */
+    addTrack(videoId, forcePlay = false) {
+        const body = { videoId };
+        if (forcePlay)
+            body.forcePlay = true;
+        return this.post('/api/v1/queue', body);
+    }
+    /** Add a playlist to the queue. */
+    addPlaylist(playlistId, forcePlay = false, shuffle = false) {
+        const body = { playlistId };
+        if (forcePlay)
+            body.forcePlay = true;
+        if (shuffle)
+            body.shuffle = true;
+        return this.post('/api/v1/queue', body);
+    }
     // ─── Private helpers ───────────────────────────────────────────────
     async requestWithRetry(method, path, body, attempt = 1) {
         const maxRetries = 2;
@@ -768,6 +792,145 @@ class BaseKeypadAction extends SingletonAction {
     });
     return _classThis;
 })();
+(() => {
+    let _classDecorators = [action({ UUID: 'com.streamdek.go-forward' })];
+    let _classDescriptor;
+    let _classExtraInitializers = [];
+    let _classThis;
+    let _classSuper = BaseKeypadAction;
+    (class extends _classSuper {
+        static { _classThis = this; }
+        static {
+            const _metadata = typeof Symbol === "function" && Symbol.metadata ? Object.create(_classSuper[Symbol.metadata] ?? null) : void 0;
+            __esDecorate(null, _classDescriptor = { value: _classThis }, _classDecorators, { kind: "class", name: _classThis.name, metadata: _metadata }, null, _classExtraInitializers);
+            _classThis = _classDescriptor.value;
+            if (_metadata) Object.defineProperty(_classThis, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+            __runInitializers(_classThis, _classExtraInitializers);
+        }
+        async onKeyDown(ev) {
+            await this.executeIfReady(ev, async () => {
+                const seconds = ev.payload.settings?.seconds ?? 10;
+                await apiClient.goForward(seconds);
+                await ev.action.showOk();
+            });
+        }
+    });
+    return _classThis;
+})();
+(() => {
+    let _classDecorators = [action({ UUID: 'com.streamdek.go-back' })];
+    let _classDescriptor;
+    let _classExtraInitializers = [];
+    let _classThis;
+    let _classSuper = BaseKeypadAction;
+    (class extends _classSuper {
+        static { _classThis = this; }
+        static {
+            const _metadata = typeof Symbol === "function" && Symbol.metadata ? Object.create(_classSuper[Symbol.metadata] ?? null) : void 0;
+            __esDecorate(null, _classDescriptor = { value: _classThis }, _classDecorators, { kind: "class", name: _classThis.name, metadata: _metadata }, null, _classExtraInitializers);
+            _classThis = _classDescriptor.value;
+            if (_metadata) Object.defineProperty(_classThis, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+            __runInitializers(_classThis, _classExtraInitializers);
+        }
+        async onKeyDown(ev) {
+            await this.executeIfReady(ev, async () => {
+                const seconds = ev.payload.settings?.seconds ?? 10;
+                await apiClient.goBack(seconds);
+                await ev.action.showOk();
+            });
+        }
+    });
+    return _classThis;
+})();
+(() => {
+    let _classDecorators = [action({ UUID: 'com.streamdek.set-volume' })];
+    let _classDescriptor;
+    let _classExtraInitializers = [];
+    let _classThis;
+    let _classSuper = BaseKeypadAction;
+    (class extends _classSuper {
+        static { _classThis = this; }
+        static {
+            const _metadata = typeof Symbol === "function" && Symbol.metadata ? Object.create(_classSuper[Symbol.metadata] ?? null) : void 0;
+            __esDecorate(null, _classDescriptor = { value: _classThis }, _classDecorators, { kind: "class", name: _classThis.name, metadata: _metadata }, null, _classExtraInitializers);
+            _classThis = _classDescriptor.value;
+            if (_metadata) Object.defineProperty(_classThis, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+            __runInitializers(_classThis, _classExtraInitializers);
+        }
+        async onKeyDown(ev) {
+            await this.executeIfReady(ev, async () => {
+                const volume = ev.payload.settings?.volume ?? 50;
+                const clamped = Math.max(0, Math.min(100, volume));
+                await apiClient.setVolume(clamped);
+                await ev.action.showOk();
+            });
+        }
+    });
+    return _classThis;
+})();
+(() => {
+    let _classDecorators = [action({ UUID: 'com.streamdek.add-track' })];
+    let _classDescriptor;
+    let _classExtraInitializers = [];
+    let _classThis;
+    let _classSuper = BaseKeypadAction;
+    (class extends _classSuper {
+        static { _classThis = this; }
+        static {
+            const _metadata = typeof Symbol === "function" && Symbol.metadata ? Object.create(_classSuper[Symbol.metadata] ?? null) : void 0;
+            __esDecorate(null, _classDescriptor = { value: _classThis }, _classDecorators, { kind: "class", name: _classThis.name, metadata: _metadata }, null, _classExtraInitializers);
+            _classThis = _classDescriptor.value;
+            if (_metadata) Object.defineProperty(_classThis, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+            __runInitializers(_classThis, _classExtraInitializers);
+        }
+        async onKeyDown(ev) {
+            await this.executeIfReady(ev, async () => {
+                const settings = ev.payload.settings;
+                const videoId = settings?.videoId;
+                if (!videoId) {
+                    await ev.action.setImage('imgs/actions/warning');
+                    return;
+                }
+                const forcePlay = settings?.forcePlay ?? false;
+                await apiClient.addTrack(videoId, forcePlay);
+                await ev.action.showOk();
+            });
+        }
+    });
+    return _classThis;
+})();
+(() => {
+    let _classDecorators = [action({ UUID: 'com.streamdek.add-playlist' })];
+    let _classDescriptor;
+    let _classExtraInitializers = [];
+    let _classThis;
+    let _classSuper = BaseKeypadAction;
+    (class extends _classSuper {
+        static { _classThis = this; }
+        static {
+            const _metadata = typeof Symbol === "function" && Symbol.metadata ? Object.create(_classSuper[Symbol.metadata] ?? null) : void 0;
+            __esDecorate(null, _classDescriptor = { value: _classThis }, _classDecorators, { kind: "class", name: _classThis.name, metadata: _metadata }, null, _classExtraInitializers);
+            _classThis = _classDescriptor.value;
+            if (_metadata) Object.defineProperty(_classThis, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+            __runInitializers(_classThis, _classExtraInitializers);
+        }
+        async onKeyDown(ev) {
+            await this.executeIfReady(ev, async () => {
+                const settings = ev.payload.settings;
+                const playlistId = settings?.playlistId;
+                if (!playlistId) {
+                    await ev.action.setImage('imgs/actions/warning');
+                    return;
+                }
+                const forcePlay = settings?.forcePlay ?? false;
+                const shuffle = settings?.shuffle ?? false;
+                await apiClient.addPlaylist(playlistId, forcePlay, shuffle);
+                await ev.action.showOk();
+            });
+        }
+    });
+    return _classThis;
+})();
 
 /**
  * Base behavior for encoder (dial) actions:
@@ -798,21 +961,26 @@ class BaseEncoderAction extends SingletonAction {
         }
     }
     /**
+     * Update feedback layout with bar value and text.
+     * With $B1 layout, value controls the bar indicator and title shows the label.
+     */
+    updateFeedback(title, barValue) {
+        if (!connectionManager.isAuthenticated())
+            return;
+        for (const action of this.actions) {
+            const feedback = { title };
+            if (barValue !== undefined) {
+                feedback.value = barValue;
+            }
+            action.setFeedback?.(feedback).catch(() => { });
+        }
+    }
+    /**
      * Show a warning indicator on the encoder touch strip when pear-desktop is unreachable.
      */
     showDisconnectedWarning() {
         for (const action of this.actions) {
-            action.setFeedback?.({ title: '⚠ Offline' }).catch(() => { });
-        }
-    }
-    /**
-     * Update feedback layout with current value text.
-     */
-    updateFeedback(value) {
-        if (!connectionManager.isAuthenticated())
-            return;
-        for (const action of this.actions) {
-            action.setFeedback?.({ title: value }).catch(() => { });
+            action.setFeedback?.({ title: '⚠ Offline', value: 0 }).catch(() => { });
         }
     }
 }
@@ -847,12 +1015,12 @@ class BaseEncoderAction extends SingletonAction {
                     // Unmute at current volume level
                     const newVol = Math.max(0, Math.min(100, currentVol));
                     await apiClient.setVolume(newVol);
-                    this.updateFeedback(`Vol: ${newVol}`);
+                    this.updateFeedback(`${newVol}`, newVol);
                     return;
                 }
                 const newVol = Math.max(0, Math.min(100, currentVol + delta));
                 await apiClient.setVolume(newVol);
-                this.updateFeedback(`Vol: ${newVol}`);
+                this.updateFeedback(`${newVol}`, newVol);
             });
         }
         async onDialDown(ev) {
@@ -861,11 +1029,11 @@ class BaseEncoderAction extends SingletonAction {
                 if (muted) {
                     const currentVol = stateStore.get('volume');
                     await apiClient.setVolume(currentVol);
-                    this.updateFeedback(`Vol: ${currentVol}`);
+                    this.updateFeedback(`${currentVol}`, currentVol);
                 }
                 else {
                     await apiClient.setVolume(0);
-                    this.updateFeedback('Muted');
+                    this.updateFeedback('Muted', 0);
                 }
             });
         }
@@ -904,7 +1072,8 @@ class BaseEncoderAction extends SingletonAction {
                 const duration = song?.duration ?? 0;
                 const newPos = Math.max(0, Math.min(duration || 9999, currentPos + delta));
                 await apiClient.seekTo(newPos);
-                this.updateFeedback(formatTime(newPos));
+                const barValue = duration > 0 ? Math.round((newPos / duration) * 100) : 0;
+                this.updateFeedback(formatTime(newPos), barValue);
             });
         }
         async onDialDown(_ev) {
@@ -921,6 +1090,136 @@ function formatTime(seconds) {
     const s = Math.floor(seconds % 60);
     return `${m}:${s.toString().padStart(2, '0')}`;
 }
+
+/**
+ * Replace template tokens with song metadata.
+ * Supported tokens: {title}, {artist}, {album}
+ */
+function applyTemplate(template, song) {
+    return template
+        .replace(/\{title\}/g, song.title)
+        .replace(/\{artist\}/g, song.artist)
+        .replace(/\{album\}/g, song.album);
+}
+
+const DEFAULT_TEMPLATE = '{title}\n{artist}';
+/**
+ * Artwork action — shows album art with optional text overlay on a Stream Deck key.
+ *
+ * Lifecycle:
+ *   onWillAppear  → subscribe to state changes, render current song
+ *   onWillDisappear → unsubscribe
+ *   VIDEO_CHANGED → re-render when song changes
+ */
+(() => {
+    let _classDecorators = [action({ UUID: 'com.streamdek.artwork' })];
+    let _classDescriptor;
+    let _classExtraInitializers = [];
+    let _classThis;
+    let _classSuper = SingletonAction;
+    (class extends _classSuper {
+        static { _classThis = this; }
+        static {
+            const _metadata = typeof Symbol === "function" && Symbol.metadata ? Object.create(_classSuper[Symbol.metadata] ?? null) : void 0;
+            __esDecorate(null, _classDescriptor = { value: _classThis }, _classDecorators, { kind: "class", name: _classThis.name, metadata: _metadata }, null, _classExtraInitializers);
+            _classThis = _classDescriptor.value;
+            if (_metadata) Object.defineProperty(_classThis, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
+            __runInitializers(_classThis, _classExtraInitializers);
+        }
+        unsubscribe = null;
+        async onWillAppear(ev) {
+            // Subscribe to state changes to re-render when song changes
+            this.unsubscribe = stateStore.subscribe(() => {
+                this.renderArtwork(ev).catch(() => { });
+            });
+            // Initial render
+            await this.renderArtwork(ev);
+        }
+        onWillDisappear(_ev) {
+            if (this.unsubscribe) {
+                this.unsubscribe();
+                this.unsubscribe = null;
+            }
+        }
+        /**
+         * Fetch album art and render it on the key with optional text overlay.
+         */
+        async renderArtwork(ev) {
+            if (!connectionManager.isAuthenticated()) {
+                await ev.action.setImage('imgs/actions/warning');
+                return;
+            }
+            try {
+                const settings = (ev.payload?.settings ?? {});
+                const song = stateStore.get('song');
+                if (!song || !song.thumbnailUrl) {
+                    // No song playing — show placeholder
+                    await ev.action.setImage('imgs/actions/artwork/artwork');
+                    return;
+                }
+                // Fetch and set album art
+                const imageData = await this.fetchImageAsBase64(song.thumbnailUrl);
+                if (imageData) {
+                    await ev.action.setImage(imageData);
+                }
+                // Apply text template overlay
+                if (settings.showTrackInfo !== false) {
+                    const tpl = settings.textTemplate || DEFAULT_TEMPLATE;
+                    const titleText = applyTemplate(tpl, song);
+                    await ev.action.setTitle(titleText);
+                }
+                // Progress bar: use setFeedback with bar layout
+                // On keypad actions, this won't have a native bar, but we show position via title
+                if (settings.showProgressBar && song.duration > 0) {
+                    const pos = stateStore.get('position');
+                    const percent = Math.round((pos / song.duration) * 100);
+                    const bar = this.buildProgressBar(percent);
+                    if (settings.showTrackInfo !== false) {
+                        // Append progress bar to title
+                        const tpl = settings.textTemplate || DEFAULT_TEMPLATE;
+                        const titleText = applyTemplate(tpl, song);
+                        await ev.action.setTitle(`${titleText}\n${bar}`);
+                    }
+                    else {
+                        await ev.action.setTitle(bar);
+                    }
+                }
+            }
+            catch {
+                await ev.action.setImage('imgs/actions/warning');
+            }
+        }
+        /**
+         * Fetch an image URL and convert it to a base64 data URL.
+         * Works with the Stream Deck `setImage()` which accepts data URLs.
+         */
+        async fetchImageAsBase64(url) {
+            try {
+                const response = await fetch(url);
+                if (!response.ok)
+                    return null;
+                const buffer = await response.arrayBuffer();
+                const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+                // Determine MIME type — default to image/jpeg
+                return `data:image/jpeg;base64,${base64}`;
+            }
+            catch {
+                return null;
+            }
+        }
+        /**
+         * Build a text-based progress bar for use in setTitle().
+         * 8-character bar with filled/empty blocks.
+         */
+        buildProgressBar(percent) {
+            const width = 8;
+            const filled = Math.round((percent / 100) * width);
+            const empty = width - filled;
+            return '█'.repeat(filled) + '░'.repeat(empty);
+        }
+    });
+    return _classThis;
+})();
 
 /**
  * Generate a persistent client ID for this Stream Deck instance.

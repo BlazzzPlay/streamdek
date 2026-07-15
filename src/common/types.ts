@@ -6,19 +6,22 @@
 export interface PlayerState {
   volume: number; // 0–100
   isPlaying: boolean;
-  song: {
-    title: string;
-    artist: string;
-    album: string;
-    duration: number; // seconds
-    thumbnailUrl: string;
-  } | null;
+  song: SongInfo | null;
   position: number; // seconds
   muted: boolean;
   shuffle: boolean;
   repeat: 'off' | 'one' | 'all';
   isLiked: boolean;
   isDisliked: boolean;
+}
+
+/** Song metadata from the pear-desktop API */
+export interface SongInfo {
+  title: string;
+  artist: string;
+  album: string;
+  duration: number; // seconds
+  thumbnailUrl: string;
 }
 
 /** Connection state machine states */
