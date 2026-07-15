@@ -10,9 +10,21 @@
 (function () {
   const $PI = window.$PI; // Stream Deck Property Inspector bridge (if available)
 
+  /** Toggle visibility of auth-related UI based on checkbox */
+  function updateAuthUI() {
+    var useAuth = document.getElementById('useAuth').checked;
+    var authorizeBtn = document.getElementById('authorize');
+    authorizeBtn.style.display = useAuth ? 'block' : 'none';
+
+    // Show the auth section info when auth is used
+    if (!useAuth) {
+      document.getElementById('authSection').style.display = 'none';
+    }
+  }
+
   /** Show a status message */
   function setStatus(message, type) {
-    const el = document.getElementById('status');
+    var el = document.getElementById('status');
     el.textContent = message;
     el.className = type || 'info';
   }
@@ -45,18 +57,20 @@
    * Probe pear-desktop on the configured host:port.
    * Uses a simple GET to the root endpoint (no auth required).
    * Timeout after 3 seconds.
+   * When not using auth, also triggers connection after successful probe.
    */
   async function probe() {
-    const host = document.getElementById('host').value || 'localhost';
-    const port = parseInt(document.getElementById('port').value, 10) || 26538;
-    const btn = document.getElementById('discover');
+    var host = document.getElementById('host').value || 'localhost';
+    var port = parseInt(document.getElementById('port').value, 10) || 26538;
+    var useAuth = document.getElementById('useAuth').checked;
+    var btn = document.getElementById('discover');
 
     btn.disabled = true;
     btn.textContent = 'Probing...';
     setStatus('Probing ' + host + ':' + port + '...', 'info');
 
-    const controller = new AbortController();
-    const timeout = setTimeout(function () { controller.abort(); }, 3000);
+    var controller = new AbortController();
+    var timeout = setTimeout(function () { controller.abort(); }, 3000);
 
     try {
       var resp = await fetch('http://' + host + ':' + port + '/', {
@@ -69,6 +83,20 @@
       setStatus('pear-desktop reachable at ' + host + ':' + port, 'success');
       document.getElementById('host').value = host;
       document.getElementById('port').value = port.toString();
+
+      // Save and connect (no auth mode: probe triggers immediate connect)
+      if (!useAuth) {
+        var settings = {
+          host: host,
+          port: port,
+          useAuth: false,
+        };
+        sendGlobalToPlugin(settings);
+        setStatus('Connected to ' + host + ':' + port, 'success');
+        document.getElementById('authSection').style.display = 'block';
+        document.getElementById('authStatus').textContent = 'Connected (no auth)';
+        document.getElementById('authStatus').style.color = '#51cf66';
+      }
     } catch (err) {
       clearTimeout(timeout);
       if (err.name === 'AbortError') {
@@ -76,6 +104,11 @@
       } else {
         setStatus('Cannot reach pear-desktop: ' + err.message, 'error');
       }
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Probe Connection';
+    }
+  }
     } finally {
       btn.disabled = false;
       btn.textContent = 'Probe Connection';
@@ -95,6 +128,7 @@
       host: host,
       port: port,
       clientId: clientId,
+      useAuth: true,
     };
 
     sendGlobalToPlugin(settings);
@@ -140,6 +174,10 @@
     if (settings.port && !document.getElementById('port').value) {
       document.getElementById('port').value = settings.port;
     }
+    if (settings.useAuth !== undefined) {
+      document.getElementById('useAuth').checked = settings.useAuth === true;
+      updateAuthUI();
+    }
     if (settings.clientId) {
       document.getElementById('clientIdDisplay').textContent = settings.clientId;
       document.getElementById('clientInfo').style.display = 'block';
@@ -156,6 +194,7 @@
   document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('discover').addEventListener('click', probe);
     document.getElementById('authorize').addEventListener('click', authorize);
+    document.getElementById('useAuth').addEventListener('change', updateAuthUI);
 
     // Listen for settings from the plugin
     if ($PI) {

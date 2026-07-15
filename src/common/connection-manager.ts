@@ -26,6 +26,7 @@ export class ConnectionManager {
   private currentHost = DEFAULT_HOST;
   private currentPort = DEFAULT_PORT;
   private currentToken = '';
+  private useAuth = false;
 
   constructor(apiClient: ApiClient, wsClient: WsClient) {
     this.apiClient = apiClient;
@@ -45,10 +46,12 @@ export class ConnectionManager {
   /**
    * Initiate connection: probe the host/port to verify reachability.
    * Does NOT perform authentication — call authenticate() after probe succeeds.
+   * @param useAuth — when false, authenticate() skips the API call and goes straight to 'authenticated'.
    */
-  connect(host: string, port: number): void {
+  connect(host: string, port: number, useAuth = false): void {
     this.currentHost = host;
     this.currentPort = port;
+    this.useAuth = useAuth;
 
     this.apiClient.setBaseUrl(host, port);
 
@@ -58,10 +61,19 @@ export class ConnectionManager {
 
   /**
    * Authenticate with pear-desktop using the API Server auth flow.
-   * POST /auth/{clientId} — user sees a dialog in pear-desktop.
+   * When useAuth is false, skips the API call and transitions directly to 'authenticated'.
+   * When useAuth is true, calls POST /auth/{clientId} — user sees a dialog in pear-desktop.
    * On success, stores the access token and starts the WebSocket connection.
    */
   async authenticate(clientId: string): Promise<void> {
+    if (!this.useAuth) {
+      this.currentToken = '';
+      this.apiClient.setToken('');
+      this.transition('authenticated');
+      this.startWsConnection();
+      return;
+    }
+
     this.transition('waiting_for_auth');
 
     try {

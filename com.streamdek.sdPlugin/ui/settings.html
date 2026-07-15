@@ -138,8 +138,18 @@
 
   <div id="status"></div>
 
+  <div style="margin-bottom: 12px;">
+    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text);">
+      <input type="checkbox" id="useAuth" style="width: auto; margin: 0;">
+      Use authentication (AUTH_AT_FIRST mode)
+    </label>
+    <p style="font-size: 11px; color: #888; margin-top: 4px; padding-left: 26px;">
+      Unchecked: no auth — pear-desktop API Server must be set to "No authorization". Recommended.
+    </p>
+  </div>
+
   <button id="discover">Probe Connection</button>
-  <button id="authorize">Connect &amp; Authorize</button>
+  <button id="authorize" style="display: none;">Connect &amp; Authorize</button>
 
   <div id="clientInfo" style="display: none; margin-bottom: 12px;">
     <label>Client ID</label>
@@ -155,16 +165,28 @@
 
   <div class="guide">
     <h3>API Server Activation Guide</h3>
-    <p>Streamdek uses pear-desktop's API Server for auto-authorization. No manual tokens required.</p>
+    <p>Streamdek works with pear-desktop's API Server. Choose one of these methods:</p>
+
+    <h4 style="margin-top: 10px; color: var(--success);">Option A — No Authorization (recommended)</h4>
     <ol>
       <li>Open <strong>pear-desktop</strong></li>
       <li>Go to <strong>Settings → API Server</strong></li>
       <li>Check <strong>Enable API Server</strong></li>
+      <li>Set Authorization to <strong>"No authorization"</strong></li>
       <li>Set port to <code>26538</code> (default)</li>
-      <li>In Streamdek, click <strong>Connect &amp; Authorize</strong></li>
+      <li>In Streamdek, leave "Use authentication" <strong>unchecked</strong></li>
+      <li>Click <strong>Probe Connection</strong> — Streamdek connects instantly</li>
+    </ol>
+
+    <h4 style="margin-top: 10px; color: var(--accent);">Option B — AUTH_AT_FIRST</h4>
+    <ol>
+      <li>Set pear API Server Authorization to <strong>"AUTH_AT_FIRST"</strong></li>
+      <li>In Streamdek, <strong>check "Use authentication"</strong></li>
+      <li>Click <strong>Connect &amp; Authorize</strong></li>
       <li>pear-desktop will show a dialog — click <strong>Allow</strong></li>
       <li>Streamdek connects automatically</li>
     </ol>
+
     <p style="margin-top: 8px; color: #aaa;">
       If auto-discovery fails, make sure pear-desktop is running and the API server is enabled.
       The plugin probes <code>localhost:26538</code> automatically.

@@ -347,6 +347,7 @@ class ConnectionManager {
     currentHost = DEFAULT_HOST;
     currentPort = DEFAULT_PORT;
     currentToken = '';
+    useAuth = false;
     constructor(apiClient, wsClient) {
         this.apiClient = apiClient;
         this.wsClient = wsClient;
@@ -362,20 +363,30 @@ class ConnectionManager {
     /**
      * Initiate connection: probe the host/port to verify reachability.
      * Does NOT perform authentication — call authenticate() after probe succeeds.
+     * @param useAuth — when false, authenticate() skips the API call and goes straight to 'authenticated'.
      */
-    connect(host, port) {
+    connect(host, port, useAuth = false) {
         this.currentHost = host;
         this.currentPort = port;
+        this.useAuth = useAuth;
         this.apiClient.setBaseUrl(host, port);
         this.transition('connecting');
         this.startProbe();
     }
     /**
      * Authenticate with pear-desktop using the API Server auth flow.
-     * POST /auth/{clientId} — user sees a dialog in pear-desktop.
+     * When useAuth is false, skips the API call and transitions directly to 'authenticated'.
+     * When useAuth is true, calls POST /auth/{clientId} — user sees a dialog in pear-desktop.
      * On success, stores the access token and starts the WebSocket connection.
      */
     async authenticate(clientId) {
+        if (!this.useAuth) {
+            this.currentToken = '';
+            this.apiClient.setToken('');
+            this.transition('authenticated');
+            this.startWsConnection();
+            return;
+        }
         this.transition('waiting_for_auth');
         try {
             const token = await this.apiClient.authenticate(clientId);
@@ -936,6 +947,7 @@ async function main() {
     const settings = await streamDeck$1.settings.getGlobalSettings();
     const host = settings.host || DEFAULT_HOST;
     const port = settings.port || DEFAULT_PORT;
+    const useAuth = settings.useAuth === true; // default: false (no auth)
     // Generate or retrieve persistent clientId
     let clientId = settings.clientId;
     if (!clientId) {
@@ -949,6 +961,10 @@ async function main() {
     // Load existing access token if available
     if (settings.accessToken) {
         apiClient.setToken(settings.accessToken);
+    }
+    else if (!useAuth) {
+        // No auth mode: clear any stale token
+        apiClient.setToken('');
     }
     // Subscribe WS events to StateStore using real pear-desktop event types
     wsClient.subscribe('PLAYER_INFO', (data) => {
@@ -996,8 +1012,8 @@ async function main() {
         });
     });
     // Connect and authenticate
-    logger.info(`Connecting to pear-desktop at ${host}:${port}`);
-    connectionManager.connect(host, port);
+    logger.info(`Connecting to pear-desktop at ${host}:${port} (useAuth=${useAuth})`);
+    connectionManager.connect(host, port, useAuth);
     // Listen for state changes to initiate auth when probe succeeds
     connectionManager.onStateChange(async (state) => {
         if (state === 'connected') {
@@ -1005,13 +1021,14 @@ async function main() {
             try {
                 await connectionManager.authenticate(clientId);
                 logger.info('Authentication successful');
-                // Persist access token for reconnection
+                // Persist settings for reconnection
                 await streamDeck$1.settings.setGlobalSettings({
                     ...settings,
                     clientId,
                     host,
                     port,
-                    accessToken: apiClient['accessToken'], // internal access, needed for persistence
+                    useAuth,
+                    accessToken: useAuth ? apiClient['accessToken'] : '',
                 });
             }
             catch (err) {
@@ -1031,7 +1048,7 @@ async function main() {
         const newPort = newSettings.port || DEFAULT_PORT;
         logger.info(`Settings changed — reconnecting to ${newHost}:${newPort}`);
         connectionManager.disconnect();
-        connectionManager.connect(newHost, newPort);
+        connectionManager.connect(newHost, newPort, newSettings.useAuth === true);
         if (newSettings.clientId) {
             clientId = newSettings.clientId;
         }

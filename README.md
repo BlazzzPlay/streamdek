@@ -26,8 +26,8 @@ Streamdek es un plugin para Elgato Stream Deck que ofrece control completo de me
 | **Seek** | Girar: ±5s. Presionar: play/pause. Pantalla táctil: posición del track |
 
 ### Arquitectura
-- **Auth** (`POST /auth/{clientId}`) — autorización nativa: pear-desktop muestra diálogo, usuario hace clic en Allow
-- **REST** (`/api/v1/*`) con token Bearer para comandos
+- **Auth** (`POST /auth/{clientId}`) — autorización nativa: pear-desktop muestra diálogo, usuario hace clic en Allow (opcional: modo sin auth disponible)
+- **REST** (`/api/v1/*`) con token Bearer para comandos (sin token cuando useAuth=false)
 - **WebSocket** (`/api/v1/ws?token=<jwt>`) con token como query param para estado en tiempo real
 - **StateStore** cachea el estado del reproductor desde eventos WS (volumen solo por WS debido al bug #4458)
 - **ConnectionManager** maneja la máquina de estados: probe → connected → waiting_for_auth → authenticated
@@ -85,13 +85,21 @@ streamdeck restart com.streamdek.sdplugin
 
 ### 2. Configurar Streamdek
 
-1. Abrí la aplicación Stream Deck
-2. Arrastrá cualquier acción de Streamdek a tu layout
-3. El **Property Inspector** se abre automáticamente
-4. Hacé clic en **Probe Connection** para verificar que pear-desktop es accesible
-5. Hacé clic en **Connect & Authorize**
-6. pear-desktop te muestra un diálogo — hacé clic en **Allow**
-7. El plugin se conecta automáticamente y muestra el estado del reproductor en los botones
+**Opción A — Sin autorización (recomendada)**
+
+1. En pear-desktop, seteá Authorization en **"No authorization"**
+2. En Streamdek, dejá **"Use authentication" destildado**
+3. Arrastrá cualquier acción de Streamdek a tu layout
+4. Hacé clic en **Probe Connection**
+5. Streamdek se conecta instantáneamente — listo
+
+**Opción B — Con autorización (AUTH_AT_FIRST)**
+
+1. En pear-desktop, seteá Authorization en **"AUTH_AT_FIRST"**
+2. En Streamdek, **tildá "Use authentication"**
+3. Hacé clic en **Connect & Authorize**
+4. pear-desktop te muestra un diálogo — hacé clic en **Allow**
+5. Streamdek se conecta automáticamente
 
 > **Sin tokens manuales**: Streamdek usa el flow de autorización nativo de pear-desktop. No necesitás copiar ni pegar ningún JWT.
 
@@ -165,8 +173,8 @@ Streamdek is an Elgato Stream Deck plugin that provides full media control for p
 | **Keypad (7)** | Play/Pause, Next Track, Previous Track, Like, Dislike, Shuffle, Repeat |
 | **Encoder (2)** | Volume (rotate ±2, press to mute), Seek (rotate ±5s, press to play/pause) |
 
-- **Native auth flow** — pear-desktop dialog, no manual JWT
-- **REST API** with Bearer token for commands
+- **Native auth flow** — pear-desktop dialog, no manual JWT (optional: no-auth mode for instant connection)
+- **REST API** with Bearer token for commands (no token header in no-auth mode)
 - **WebSocket** with token as URL query param for real-time player state
 - **Auto-probe** of pear-desktop on configurable host:port
 - **Per-action disconnect warnings** on both Keypad and Encoder displays
@@ -182,11 +190,19 @@ pnpm build
 
 ### Activation
 
-1. Enable **API Server** in pear-desktop settings
-2. Add any Streamdek action to your Stream Deck layout
-3. Use **Probe Connection** in the Property Inspector to verify reachability
-4. Click **Connect & Authorize** — pear-desktop will show a dialog
-5. Click **Allow** in pear-desktop — Streamdek connects automatically
+**Option A — No Authorization (recommended)**
+
+1. In pear-desktop, set Authorization to **"No authorization"**
+2. In Streamdek, leave **"Use authentication" unchecked**
+3. Add any Streamdek action to your Stream Deck layout
+4. Click **Probe Connection** — Streamdek connects instantly
+
+**Option B — With Authorization (AUTH_AT_FIRST)**
+
+1. In pear-desktop, set Authorization to **"AUTH_AT_FIRST"**
+2. In Streamdek, **check "Use authentication"**
+3. Click **Connect & Authorize** — pear-desktop will show a dialog
+4. Click **Allow** in pear-desktop — Streamdek connects automatically
 
 > **No manual tokens**: Streamdek uses pear-desktop's native authorization flow. No JWT copying needed.
 

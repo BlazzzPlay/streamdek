@@ -38,6 +38,7 @@ export interface PluginSettings {
   port?: number;
   clientId?: string;
   accessToken?: string;
+  useAuth?: boolean;
   [key: string]: JsonValue | undefined;
 }
 
